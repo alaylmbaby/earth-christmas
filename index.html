@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>지구별 크리스마스</title>
+<meta name="description" content="지구별 크리스마스 — 친구들과 트리를 꾸미고 눈싸움하는 3D 크리스마스 마을">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  /* Layout: full-screen WebGL; HUD pinned to corners; contextual action bar at the bottom; sheets slide up for map / wish / ornament / snowman / mailbox */
+  :root {
+    --bg: #0d1322; --fg: #f3ede2; --muted: #a9a79c;
+    --panel: rgba(16, 22, 38, 0.82); --panel-solid: #141b2e; --line: rgba(243, 237, 226, 0.14);
+    --accent: #e4b25a; --accent-2: #c8463a; --ok: #7fc39a;
+    --font-display: "Gowun Batang", "Noto Serif KR", Georgia, serif;
+    --font-ui: "Noto Sans KR", -apple-system, system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --panel: rgba(16, 22, 38, 0.84); color-scheme: dark; } }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; margin: 0; overflow: hidden; -webkit-user-select: none; user-select: none; touch-action: none; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .hud { position: fixed; inset: 0; pointer-events: none; }
+  .hud > * { pointer-events: auto; }
+  .hud .quiet { pointer-events: none; }
+
+  .brand { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); }
+  .brand h1 { font: 700 18px/1.2 var(--font-display); margin: 0; text-shadow: 0 1px 8px rgba(0,0,0,.5); }
+  .brand span { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
+
+  .fill { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; min-width: 164px; backdrop-filter: blur(8px); }
+  .fill .n { font: 700 15px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+  .fill .n small { font: 400 11px var(--font-ui); color: var(--muted); }
+  .fill .bar { height: 4px; border-radius: 2px; background: var(--line); margin-top: 7px; overflow: hidden; }
+  .fill .bar i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .4s ease; }
+  .fill .who { margin-top: 6px; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; min-width: 150px; }
+  .fill .who b { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .fill .me { margin-top: 4px; font-size: 11px; color: var(--fg); }
+
+  .dock { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+  .dock.folded { transform: translate(calc(100% - 28px), -50%); }
+  .dock .items { display: grid; gap: 6px; background: rgba(16, 22, 38, 0.55); border: 1px solid var(--line); border-right: 0; border-radius: 16px 0 0 16px; padding: 8px 6px; padding-right: max(8px, env(safe-area-inset-right, 0px)); backdrop-filter: blur(10px); }
+  .dock .items button { width: 64px; border: 0; background: transparent; border-radius: 12px; padding: 8px 2px 7px; display: grid; gap: 3px; justify-items: center; font-size: 10.5px; letter-spacing: .02em; color: var(--fg); }
+  .dock .items button em { font-style: normal; font-size: 20px; line-height: 1; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+  .dock .items button:active em { background: rgba(228,178,90,.25); }
+  .dock .items button[disabled] { opacity: .45; }
+  .dock .items button.minor em { font-size: 16px; width: 30px; height: 30px; }
+  .dock .items button.minor { font-size: 10px; color: var(--muted); padding-top: 4px; }
+  .dock .tab { width: 28px; height: 56px; border: 1px solid var(--line); border-right: 0; border-radius: 10px 0 0 10px; background: rgba(16, 22, 38, 0.55); backdrop-filter: blur(10px); display: grid; place-items: center; padding: 0; margin-right: -1px; }
+  .dock .tab svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; transition: transform .3s; }
+  .dock.folded .tab svg { transform: rotate(180deg); }
+  .fill .who { flex-wrap: nowrap; }
+  .maplink { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: rgba(255,255,255,.06); border-radius: 999px; padding: 3px 9px 3px 7px; font-size: 11px; color: var(--fg); }
+  .maplink svg { width: 13px; height: 13px; stroke: var(--accent); fill: none; stroke-width: 1.8; }
+  .stick { position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); bottom: calc(26px + env(safe-area-inset-bottom, 0px)); width: 112px; height: 112px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); display: none; touch-action: none; }
+  .stick b { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: var(--accent); opacity: .85; }
+  .touch .stick { display: block; }
+
+  .hint { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(26px + env(safe-area-inset-bottom, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; font-size: 12px; color: var(--muted); text-align: center; max-width: calc(100vw - 200px); backdrop-filter: blur(8px); transition: opacity .3s; }
+  .hint kbd { font: inherit; color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; }
+  .touch .hint { display: none; }
+
+  .actions { position: absolute; left: 50%; transform: translate(-50%, 20px); bottom: calc(100px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
+  .actions.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+  .actions button { border: 1px solid var(--line); background: var(--panel); border-radius: 14px; padding: 10px 14px; display: grid; gap: 4px; justify-items: center; min-width: 84px; backdrop-filter: blur(8px); font-size: 12px; }
+  .actions button em { font-style: normal; font-size: 18px; line-height: 1; }
+  .actions button[hidden] { display: none; }
+  .touch .actions { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
+
+  .toast { position: absolute; left: 50%; top: calc(86px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -8px); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 13px; opacity: 0; transition: opacity .3s, transform .3s; max-width: calc(100vw - 32px); text-align: center; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .fade { position: fixed; inset: 0; background: #06091a; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+  .fade.on { opacity: 1; }
+
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel-solid); border-top: 1px solid var(--line); border-radius: 20px 20px 0 0; padding-block: 14px calc(20px + env(safe-area-inset-bottom, 0px)); padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); transform: translateY(105%); transition: transform .35s cubic-bezier(.2,.8,.2,1); max-height: 84vh; overflow-y: auto; z-index: 5; }
+  .sheet.open { transform: translateY(0); }
+  .sheet .grip { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 14px; }
+  .sheet h2 { font: 700 20px/1.25 var(--font-display); margin: 0 0 4px; text-wrap: balance; }
+  .sheet .sub { color: var(--muted); font-size: 12.5px; margin: 0 0 16px; line-height: 1.5; }
+  .sheet .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .sheet .row > * { flex: 1 1 140px; min-width: 0; }
+  .btn { border: 1px solid var(--line); background: transparent; border-radius: 12px; padding: 12px 16px; font-weight: 500; }
+  .btn.primary { background: var(--accent); color: #1c1407; border-color: transparent; }
+  .btn.ghost { color: var(--muted); }
+  .sheet label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
+  .sheet input, .sheet textarea { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; color: var(--fg); font: inherit; }
+  .sheet textarea { min-height: 96px; resize: vertical; }
+  .count { font-size: 11px; color: var(--muted); text-align: right; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .note { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 12px; }
+
+  .trees { display: grid; gap: 10px; }
+  .tree-card { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); background: rgba(255,255,255,.03); border-radius: 14px; padding: 12px; }
+  .tree-card.here { border-color: var(--accent); }
+  .tree-card .ic { width: 56px; height: 56px; border-radius: 12px; display: grid; place-items: center; }
+  .tree-card .ic svg { width: 36px; height: 36px; }
+  .tree-card .name { display: block; font: 700 15px/1.2 var(--font-display); }
+  .tree-card .desc { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+  .tree-card .num { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .tree-card .num b { display: block; color: var(--fg); font-size: 14px; }
+
+  .swatches { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 6px; }
+  .swatches button { aspect-ratio: 1; border-radius: 50%; border: 3px solid transparent; }
+  .swatches button[aria-pressed="true"] { border-color: var(--fg); }
+  .shapes { display: flex; gap: 8px; margin-top: 10px; }
+  .shapes button { flex: 1; border: 1px solid var(--line); background: rgba(255,255,255,.03); border-radius: 12px; padding: 10px 6px 8px; font-size: 12px; display: grid; gap: 6px; justify-items: center; }
+  .shapes button svg { width: 44px; height: 44px; }
+  .shapes button svg .c { fill: var(--orn); stroke: var(--orn); }
+  .shapes button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
+  .roll { position: absolute; left: 50%; transform: translateX(-50%); top: calc(84px + env(safe-area-inset-top, 0px)); width: min(300px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; backdrop-filter: blur(8px); text-align: center; }
+  .roll[hidden] { display: none; }
+  .roll .steps3 { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
+  .roll .steps3 i { width: 22px; height: 4px; border-radius: 2px; background: var(--line); }
+  .roll .steps3 i.done { background: var(--ok); }
+  .roll .steps3 i.now { background: var(--accent); }
+  .roll .t { font: 700 15px/1.2 var(--font-display); }
+  .roll .bar { height: 6px; border-radius: 3px; background: var(--line); margin: 8px 0 6px; overflow: hidden; }
+  .roll .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s linear; }
+  .roll .bar i.full { background: var(--ok); }
+  .roll .s { font-size: 11.5px; color: var(--muted); }
+
+  .mail { text-align: center; padding: 8px 0 4px; }
+  .mail .date { font: 700 34px/1.1 var(--font-display); color: var(--accent); margin: 8px 0 2px; font-variant-numeric: tabular-nums; }
+  .mail .d { font-size: 12px; color: var(--muted); letter-spacing: .08em; }
+  .mail ul { text-align: left; margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .mail li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; font-size: 13px; line-height: 1.5; }
+  .mail li b { color: var(--accent); font-weight: 400; }
+
+  .enter { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 30%, #1a2645 0%, #0a0f1f 70%); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .enter[hidden] { display: none; }
+  .enter .card { width: min(360px, 100%); display: grid; gap: 10px; text-align: center; }
+  .enter .eyebrow { font-size: 11px; letter-spacing: .18em; color: var(--muted); }
+  .enter h1 { font: 700 30px/1.2 var(--font-display); margin: 0; text-wrap: balance; }
+  .enter p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0 0 8px; }
+  .enter input { text-align: center; font-size: 17px; }
+  .enter .fine { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .btn.mine { width: 100%; margin-top: 10px; color: var(--accent); border-color: rgba(228,178,90,.4); }
+  .btn.mine[hidden] { display: none; }
+  .viewer { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: min(340px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; backdrop-filter: blur(10px); display: grid; gap: 6px; }
+  .viewer[hidden] { display: none; }
+  .viewer .vhead { display: flex; align-items: baseline; gap: 10px; }
+  .viewer .vk { font-size: 11px; color: var(--accent); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+  .viewer .vt { font: 700 16px/1.2 var(--font-display); }
+  .viewer .vsub { font-size: 12px; color: var(--muted); }
+  .viewer .vrow { display: flex; gap: 8px; margin-top: 8px; }
+  .viewer .vrow .btn { flex: 1; padding: 10px 12px; }
+  .cine { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(40px + env(safe-area-inset-bottom, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 9px 18px; font: 700 14px/1.2 var(--font-display); backdrop-filter: blur(8px); white-space: nowrap; }
+  .cine[hidden] { display: none; }
+  .hud.cinema .dock, .hud.cinema .stick, .hud.cinema .actions, .hud.cinema .fill, .hud.cinema .hint { opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .hud .dock, .hud .stick, .hud .fill { transition: opacity .3s; }
+  .reticle { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: var(--fg); opacity: .4; }
+  .touch .reticle { display: none; }
+  @media (prefers-reduced-motion: reduce) { .sheet, .actions, .toast, .fade, .fill .bar i { transition: none; } }
+</style>
+
+<canvas id="scene"></canvas>
+<div class="fade" id="fade"></div>
+
+<div class="enter" id="enter">
+  <div class="card">
+    <div class="eyebrow">CHRISTMAS 2026</div>
+    <h1>지구별 크리스마스에<br>오신 걸 환영해요</h1>
+    <p>이름만 정하면 바로 들어갈 수 있어요.<br>광장, 산타 작업장, 루돌프네 집을 오가며 트리를 꾸며 보세요.</p>
+    <input id="nickInput" maxlength="10" placeholder="닉네임 (2~10자)" autocomplete="off">
+    <button class="btn primary" id="enterBtn">들어가기</button>
+    <div class="fine">가입·인증 없음. 이 기기에 이름만 기억해 둬요.</div>
+  </div>
+</div>
+
+<div class="hud" id="hud">
+  <div class="brand quiet"><h1 id="zoneName">광장</h1><span id="zoneSub">큰 트리 · 눈 내리는 밤</span></div>
+  <div class="fill"><div class="n"><span id="fillNum">0</span> <small>/ 500</small></div><div class="bar"><i id="fillBar"></i></div><div class="who"><b></b><span id="visitorCount">1명 함께 있음</span><button class="maplink" id="mapBtn" aria-label="지도 열기"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</button></div><div class="me" id="meName"></div></div>
+  <div class="reticle quiet"></div>
+  <div class="hint" id="hint">클릭해서 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Space</kbd> 눈싸움 · 드래그로 카메라 높이</div>
+  <div class="toast quiet" id="toast"></div>
+  <div class="actions" id="actions">
+    <button id="actPlace"><em>⬇</em>여기 놓기</button>
+    <button id="actCancel"><em>✕</em>그만두기</button>
+  </div>
+  <div class="roll quiet" id="rollPanel" hidden>
+    <div class="steps3" id="rollSteps"><i></i><i></i><i></i></div>
+    <div class="t" id="rollTitle">몸통 굴리기</div>
+    <div class="bar"><i id="rollBar"></i></div>
+    <div class="s" id="rollSub">눈덩이를 앞에 두고 걸으면 점점 커져요</div>
+  </div>
+  <div class="viewer" id="viewer" hidden>
+    <div class="vhead"><span class="vk" id="vIndex">1 / 3</span><span class="vt" id="vTitle">첫 번째 오너먼트</span></div>
+    <div class="vsub" id="vSub"></div>
+    <div class="vrow"><button class="btn ghost" id="vClose">닫기</button><button class="btn primary" id="vNext">다음 ›</button></div>
+  </div>
+  <div class="cine quiet" id="cine" hidden><span id="cineText"></span></div>
+  <div class="stick" id="stick"><b id="knob"></b></div>
+  <div class="dock" id="dock">
+    <button class="tab" id="dockTab" aria-label="메뉴 접기"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    <div class="items">
+      <button id="actOrn"><em>●</em>오너먼트</button>
+      <button id="throwBtn"><em>❄</em>눈싸움</button>
+      <button id="actSnowman"><em>☃</em>눈사람</button>
+      <button id="actMail"><em>✉</em>카드 보내기</button>
+      <button id="actWish" class="minor"><em>✦</em>소원 빌기</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="sheetMap" aria-hidden="true">
+  <div class="grip"></div>
+  <h2>어느 트리로 갈까요?</h2>
+  <p class="sub">트리마다 500개까지 장식을 걸 수 있어요. 가득 찬 트리는 구경만 할 수 있습니다.</p>
+  <div class="trees" id="treeList"></div>
+  <div class="row" style="margin-top:14px"><button class="btn ghost" data-close>닫기</button></div>
+</div>
+
+<div class="sheet" id="sheetWish" aria-hidden="true">
+  <div class="grip"></div>
+  <h2>트리 아래에서 소원 빌기</h2>
+  <p class="sub">소원은 밤하늘로 올라가요. 이름은 남지 않고, 트리 자리도 차지하지 않아요.</p>
+  <label for="wishText">소원</label>
+  <textarea id="wishText" maxlength="80" placeholder="올해는…"></textarea>
+  <div class="count"><span id="wishCount">0</span> / 80</div>
+  <div class="row" style="margin-top:14px"><button class="btn ghost" data-close>취소</button><button class="btn primary" id="wishSend">하늘로 보내기</button></div>
+</div>
+
+<div class="sheet" id="sheetOrn" aria-hidden="true">
+  <div class="grip"></div>
+  <h2>오너먼트 달기</h2>
+  <p class="sub">색을 고르면 아래 모양에 바로 입혀져요. 트리의 빈자리에 걸리고 내 닉네임이 함께 남아요.</p>
+  <div class="swatches" id="swatches"></div>
+  <div class="shapes" id="shapes">
+    <button data-shape="cane" aria-pressed="true"><svg viewBox="0 0 40 40"><path class="c" d="M14 12a7 7 0 0 1 14 0v22" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M14 12a7 7 0 0 1 14 0v22" stroke="#f6f0e0" stroke-width="6" stroke-linecap="round" fill="none" stroke-dasharray="4 7"/></svg>지팡이</button>
+    <button data-shape="star" aria-pressed="false"><svg viewBox="0 0 40 40"><path d="M20 2v5" stroke="#e4b25a" stroke-width="2"/><path class="c" d="M20 7l4.1 8.6 9.4 1.2-6.9 6.5 1.8 9.3L20 28.1l-8.4 4.5 1.8-9.3-6.9-6.5 9.4-1.2z"/></svg>별</button>
+    <button data-shape="gift" aria-pressed="false"><svg viewBox="0 0 40 40"><path d="M20 2v6" stroke="#e4b25a" stroke-width="2"/><rect class="c" x="8" y="12" width="24" height="24" rx="3"/><rect x="18" y="12" width="4" height="24" fill="#e4b25a"/><rect x="8" y="22" width="24" height="4" fill="#e4b25a"/><path d="M20 12c-3-6-9-5-7-1 1 2 4 2 7 1zm0 0c3-6 9-5 7-1-1 2-4 2-7 1z" fill="#e4b25a"/></svg>선물 상자</button>
+  </div>
+  <div class="row" style="margin-top:18px"><button class="btn ghost" data-close>취소</button><button class="btn primary" id="ornSend">트리에 달기</button></div>
+  <button class="btn mine" id="ornMine" hidden>내 오너먼트 보기 <span id="ornMineN"></span></button>
+</div>
+
+
+<div class="sheet" id="sheetMail" aria-hidden="true">
+  <div class="grip"></div>
+  <div class="mail">
+    <h2>우체통은 12월에 열려요!</h2>
+    <div class="date">12. 01</div>
+    <div class="d" id="mailDday"></div>
+    <ul>
+      <li><b>✉</b><span>친구에게 크리스마스 카드를 써서 트리에 걸어 두면</span></li>
+      <li><b>✦</b><span>받는 사람에게 비밀 링크가 전달되고</span></li>
+      <li><b>☆</b><span>12월 25일 0시, 산타가 카드를 열어 줘요</span></li>
+    </ul>
+  </div>
+  <div class="row" style="margin-top:18px"><button class="btn primary" data-close>기다릴게요</button></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = function (id) { return document.getElementById(id); };
+  addEventListener('error', function (e) { const h = $('hint'); h.style.display = 'block'; h.style.opacity = '1'; h.textContent = '오류: ' + (e.message || e.error); });
+  if (!window.THREE) { $('hint').textContent = '3D 라이브러리를 불러오지 못했어요. 새로고침해 주세요.'; return; }
+
+  const CAP = 500, SNOWMAN_CAP = 80;
+  // ---------- Server (Supabase). anon key is public by design; row-level rules decide what it may do. ----------
+  const SB_URL = 'https://zipzamageqrhgtskjoko.supabase.co';
+  const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppcHphbWFnZXFyaGd0c2tqb2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTcwOTcsImV4cCI6MjEwOTE5MzA5N30.yLIA5A3bkdHrO5KNy9zo3XyzxY6IxFemppSUZdkR7RQ';
+  const sb = window.supabase ? window.supabase.createClient(SB_URL, SB_KEY, { realtime: { params: { eventsPerSecond: 12 } } }) : null;
+  let online = false, uid = null, zoneCh = null;
+  const byId = function (a, b) { return (a.id || 0) - (b.id || 0); };
+  function mapOrn(r) { return { id: r.id, type: 'ornament', shape: r.shape, color: r.color, name: r.nick, owner: r.owner, at: Date.parse(r.created_at) || Date.now() }; }
+  function mapSnow(r) { return { id: r.id, type: 'snowman', x: r.x, z: r.z, ry: r.ry, name: r.nick, owner: r.owner, at: Date.parse(r.created_at) || Date.now() }; }
+  const isTouch = matchMedia('(pointer: coarse)').matches; if (isTouch) document.body.classList.add('touch');
+
+  // ---------- Zones ----------
+  const ZONES = [
+    { id: 'plaza', name: '광장', sub: '큰 트리 · 눈 내리는 밤', desc: '마을 한가운데 가장 큰 트리. 금빛 전구와 리본, 꼭대기의 별.', origin: new THREE.Vector3(0, 0, 0), outdoor: true, sky: 0x0b1226, fog: 0x0b1226, fogNear: 18, fogFar: 46, bound: 16, spawn: [0, 11], accent: '#e4b25a', mailbox: [5.2, 4.6],
+      tree: { tiers: 7, h: 9.5, r: 3.4, color: 0x1f5a3a, color2: 0x2f7a4c, lights: 0xffc266, garland: 0xe4b25a, topper: 'star' } },
+    { id: 'workshop', name: '산타 작업장', sub: '장작 난로 · 선물 상자', desc: '통나무 작업장 안의 아담한 트리. 알록달록 전구와 사탕 지팡이.', origin: new THREE.Vector3(70, 0, 0), outdoor: false, sky: 0x1c120c, fog: 0x1c120c, fogNear: 10, fogFar: 26, bound: 7.2, spawn: [0, 5.5], accent: '#c8463a', mailbox: [3.6, 3.2],
+      tree: { tiers: 5, h: 4.6, r: 1.9, color: 0x2a6b3e, color2: 0x3a8a52, lights: 0xff6b6b, lights2: 0x6bd3ff, garland: 0xc8463a, topper: 'bell' } },
+    { id: 'rudolph', name: '루돌프네 집 앞', sub: '눈 쌓인 전나무 · 빨간 코', desc: '마구간 앞 눈 덮인 전나무. 가지 끝마다 눈이 얹혔고 꼭대기엔 빨간 코.', origin: new THREE.Vector3(-70, 0, 0), outdoor: true, sky: 0x0e1a2e, fog: 0x0e1a2e, fogNear: 14, fogFar: 40, bound: 13, spawn: [0, 9], accent: '#7fc39a', mailbox: [4.6, 3.8],
+      tree: { tiers: 6, h: 7, r: 2.6, color: 0x27543a, color2: 0x33684a, lights: 0xdff3ff, snow: true, garland: 0xdfe9ff, topper: 'nose' } }
+  ];
+
+  // ---------- Local store (server replaces this later; same record shapes) ----------
+  const store = { load: function (k, d) { try { return JSON.parse(localStorage.getItem('xmas:' + k)) || d; } catch (e) { return d; } }, save: function (k, v) { try { localStorage.setItem('xmas:' + k, JSON.stringify(v)); } catch (e) {} } };
+  const data = { nick: store.load('nick', ''), ornaments: store.load('ornaments', {}), snowmen: store.load('snowmen', {}), me: store.load('me', '') };
+  if (!data.me) { data.me = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); store.save('me', data.me); }
+  function isMine(o) { if (uid) return o.owner === uid; return o.owner ? o.owner === data.me : o.name === data.nick; }
+  ZONES.forEach(function (z) { data.ornaments[z.id] = data.ornaments[z.id] || []; data.snowmen[z.id] = data.snowmen[z.id] || []; });
+  function itemsOn(z) { return data.ornaments[z.id].length; }
+
+  // ---------- Renderer ----------
+  const canvas = $('scene');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.6 : 2));
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+  const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x0b1226, 18, 46); scene.background = new THREE.Color(0x0b1226);
+  const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 120);
+  scene.add(new THREE.HemisphereLight(0x8fa6d9, 0x1b2130, 0.55));
+
+  const colliders = []; // {x,z,r}
+  const M = { snow: new THREE.MeshStandardMaterial({ color: 0xe9eef7, roughness: 1 }), wood: new THREE.MeshStandardMaterial({ color: 0x6b4a2e, roughness: .9 }), darkwood: new THREE.MeshStandardMaterial({ color: 0x3e2a1a, roughness: .9 }), stone: new THREE.MeshStandardMaterial({ color: 0x55596a, roughness: 1 }), red: new THREE.MeshStandardMaterial({ color: 0xb8332b, roughness: .55 }), white: new THREE.MeshStandardMaterial({ color: 0xf6f3ea, roughness: .85 }), gold: new THREE.MeshStandardMaterial({ color: 0xffc44d, emissive: 0xaa7a1a, emissiveIntensity: .8, roughness: .3, metalness: .6 }), glass: new THREE.MeshStandardMaterial({ color: 0xffe9b0, emissive: 0xffd27a, emissiveIntensity: 1.2, roughness: .4 }), carrot: new THREE.MeshStandardMaterial({ color: 0xf08a2a, roughness: .8 }) };
+  function box(w, h, d, mat, x, y, z, parent, ry) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); if (ry) m.rotation.y = ry; (parent || scene).add(m); return m; }
+  function cyl(rt, rb, h, mat, x, y, z, parent, seg) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 10), mat); m.position.set(x, y, z); (parent || scene).add(m); return m; }
+  function cone(r, h, mat, x, y, z, parent, seg) { const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, seg || 12), mat); m.position.set(x, y, z); (parent || scene).add(m); return m; }
+  function sphere(r, mat, x, y, z, parent, seg) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg || 12, seg || 12), mat); m.position.set(x, y, z); (parent || scene).add(m); return m; }
+  function textSprite(text, color, w) { const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d'); g.font = '700 54px "Gowun Batang", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = color || '#f3ede2'; g.fillText(text, 256, 68); const t = new THREE.CanvasTexture(c); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false })); s.scale.set(w || 3.2, (w || 3.2) / 4, 1); return s; }
+  // Soft radial glow texture (used for light halos and ground pools)
+  const glowTex = (function () { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.35, 'rgba(255,255,255,0.45)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+
+  // ---------- Avatars ----------
+  // Everyone shares one body; a seed (account id) picks the coat color and two or three festive accessories, so a person looks the same on every device.
+  function hashSeed(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return function () { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; }
+  const COATS = [0xb8332b, 0x2b6f9e, 0x3f9d5a, 0x5b4a8a, 0xd98a3a, 0x6b4a2e, 0x9e2b5e, 0x2f6f6f];
+  const SCARVES = [0xc8463a, 0xe4b25a, 0x3f9d5a, 0xf6f0e0, 0x2b6f9e];
+  const ACC = {
+    santa: { name: '산타 모자', build: function (g) { const hat = cone(0.2, 0.42, M.red, 0, 1.92, 0, g, 12); hat.rotation.z = 0.25; hat.position.x = 0.05; const brim = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.05, 8, 16), M.white); brim.rotation.x = Math.PI / 2; brim.position.y = 1.74; g.add(brim); sphere(0.06, M.white, 0.19, 2.08, 0, g, 8); } },
+    antlers: { name: '루돌프 머리띠', build: function (g) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.02, 6, 16, Math.PI), M.darkwood); band.position.y = 1.78; band.rotation.z = Math.PI; g.add(band); [-1, 1].forEach(function (sd) { const a = cyl(0.015, 0.025, 0.3, M.darkwood, sd * 0.12, 1.98, 0, g, 6); a.rotation.z = -sd * 0.35; const b = cyl(0.012, 0.018, 0.16, M.darkwood, sd * 0.2, 2.06, 0, g, 6); b.rotation.z = -sd * 1.2; }); sphere(0.045, new THREE.MeshStandardMaterial({ color: 0xff3b2f, emissive: 0xff2a1a, emissiveIntensity: 1.2 }), 0, 1.62, 0.21, g, 8); } },
+    earmuffs: { name: '귀마개', build: function (g) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.015, 6, 16, Math.PI), M.red); band.position.y = 1.72; band.rotation.z = Math.PI; g.add(band); sphere(0.07, M.white, -0.21, 1.6, 0, g, 8); sphere(0.07, M.white, 0.21, 1.6, 0, g, 8); } },
+    wreath: { name: '미슬토 리스', build: function (g) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.045, 8, 18), new THREE.MeshStandardMaterial({ color: 0x2f6f3e, roughness: 1 })); w.rotation.x = Math.PI / 2; w.position.y = 1.38; g.add(w); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; sphere(0.022, M.red, Math.cos(a) * 0.2, 1.4, Math.sin(a) * 0.2, g, 6); } } },
+    scarf: { name: '목도리', build: function (g, r) { const col = SCARVES[Math.floor(r() * SCARVES.length)]; const mat = new THREE.MeshStandardMaterial({ color: col, roughness: .9 }); const w = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.05, 8, 16), mat); w.rotation.x = Math.PI / 2; w.position.y = 1.38; g.add(w); box(0.09, 0.32, 0.04, mat, 0.12, 1.2, 0.2, g); box(0.09, 0.03, 0.05, M.white, 0.12, 1.06, 0.2, g); } },
+    bell: { name: '종 목걸이', build: function (g) { const c = cyl(0.004, 0.004, 0.12, M.gold, 0, 1.33, 0.16, g, 5); const b = cone(0.045, 0.07, M.gold, 0, 1.25, 0.17, g, 12); b.rotation.x = Math.PI; sphere(0.015, M.gold, 0, 1.2, 0.17, g, 6); } },
+    glasses: { name: '지팡이 안경', build: function (g) { [-1, 1].forEach(function (sd) { const l = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.012, 6, 14), sd < 0 ? M.red : M.white); l.position.set(sd * 0.08, 1.64, 0.2); g.add(l); const stripe = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.013, 6, 14, Math.PI), sd < 0 ? M.white : M.red); stripe.position.set(sd * 0.08, 1.64, 0.2); g.add(stripe); }); const hook = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.01, 6, 10, Math.PI), M.red); hook.position.set(0, 1.66, 0.2); g.add(hook); } },
+    earrings: { name: '눈사람 귀걸이', build: function (g) { [-1, 1].forEach(function (sd) { sphere(0.028, M.white, sd * 0.21, 1.5, 0, g, 6); sphere(0.02, M.white, sd * 0.21, 1.545, 0, g, 6); sphere(0.006, M.carrot, sd * 0.21, 1.545, 0.02, g, 4); }); } },
+    stocking: { name: '크리스마스 양말', build: function (g) { const sock = box(0.07, 0.16, 0.06, M.red, 0.21, 0.9, 0.05, g); box(0.07, 0.04, 0.06, M.white, 0.21, 0.99, 0.05, g); box(0.1, 0.05, 0.06, M.red, 0.235, 0.81, 0.05, g); } },
+    snowflake: { name: '눈꽃 핀', build: function (g) { for (let i = 0; i < 3; i++) { const bar = box(0.09, 0.012, 0.012, M.white, -0.12, 1.86, 0.1, g); bar.rotation.z = i * Math.PI / 3; bar.rotation.y = 0.4; } } }
+  };
+  function buildAvatar(seed, nick, parent) {
+    const r = hashSeed(String(seed || 'guest')); const outer = new THREE.Group(); (parent || scene).add(outer); const g = new THREE.Group(); g.rotation.y = Math.PI; outer.add(g); // the body faces local -z, the walking direction
+    const coat = new THREE.MeshStandardMaterial({ color: COATS[Math.floor(r() * COATS.length)], roughness: .85 });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xf2d2b6, roughness: .8 }); const dark = new THREE.MeshStandardMaterial({ color: 0x2a2320, roughness: .9 });
+    const legs = []; [-1, 1].forEach(function (sd) { const leg = new THREE.Group(); leg.position.set(sd * 0.09, 0.62, 0); cyl(0.065, 0.06, 0.55, dark, 0, -0.27, 0, leg, 8); const boot = box(0.14, 0.1, 0.2, dark, 0, -0.57, 0.03, leg); g.add(leg); legs.push(leg); });
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.24, 0.72, 12), coat); torso.position.y = 0.98; g.add(torso);
+    box(0.06, 0.6, 0.02, M.white, 0, 0.98, 0.235, g); for (let i = 0; i < 3; i++) sphere(0.02, dark, 0, 1.2 - i * 0.18, 0.25, g, 6); // placket + buttons
+    const arms = []; [-1, 1].forEach(function (sd) { const arm = new THREE.Group(); arm.position.set(sd * 0.26, 1.28, 0); cyl(0.055, 0.05, 0.56, coat, 0, -0.26, 0, arm, 8); sphere(0.06, new THREE.MeshStandardMaterial({ color: 0xb8332b, roughness: .9 }), 0, -0.56, 0, arm, 8); g.add(arm); arms.push(arm); });
+    const head = sphere(0.21, skin, 0, 1.62, 0, g, 16); const hair = new THREE.Mesh(new THREE.SphereGeometry(0.215, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.45), new THREE.MeshStandardMaterial({ color: [0x3a2a1a, 0x1e1a18, 0x8a5a36, 0xd8b26a][Math.floor(r() * 4)], roughness: 1 })); hair.position.y = 1.64; g.add(hair);
+    sphere(0.022, dark, -0.07, 1.65, 0.19, g, 6); sphere(0.022, dark, 0.07, 1.65, 0.19, g, 6); sphere(0.03, new THREE.MeshStandardMaterial({ color: 0xe8a0a0 }), -0.12, 1.57, 0.17, g, 6); sphere(0.03, new THREE.MeshStandardMaterial({ color: 0xe8a0a0 }), 0.12, 1.57, 0.17, g, 6);
+    // Accessories: one head item, one neck item, maybe one face item, maybe one extra
+    const picks = []; const headI = [null, 'santa', 'antlers', 'earmuffs', 'snowflake'][Math.floor(r() * 5)]; const neckI = ['scarf', 'wreath', 'scarf', 'bell'][Math.floor(r() * 4)]; const faceI = r() < 0.5 ? ['glasses', 'earrings'][Math.floor(r() * 2)] : null; const extraI = r() < 0.45 ? ['stocking', 'bell'][Math.floor(r() * 2)] : null;
+    [headI, neckI, faceI, extraI].forEach(function (k) { if (k && picks.indexOf(k) < 0) { picks.push(k); ACC[k].build(g, r); } });
+    const tag = textSprite(nick || '친구', '#f3ede2', 2.0); tag.position.y = 2.45; outer.add(tag);
+    outer.userData = { legs: legs, arms: arms, tag: tag, picks: picks, walk: 0, head: head };
+    return outer;
+  }
+  function animateAvatar(g, moving, dt) { const u = g.userData; if (!u.legs) return; u.walk += dt * (moving ? 9 : 0); if (!moving) u.walk += (Math.round(u.walk / Math.PI) * Math.PI - u.walk) * Math.min(1, dt * 10); const sw = Math.sin(u.walk) * (moving ? 0.6 : 0.25 * Math.abs(Math.sin(u.walk))); u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw; u.arms[0].rotation.x = -sw * 0.8; u.arms[1].rotation.x = sw * 0.8; if (u.throwT > 0) { u.throwT -= dt; u.arms[1].rotation.x = -2.4 + (0.4 - u.throwT) * 5; } g.position.y = moving ? Math.abs(Math.sin(u.walk)) * 0.04 : 0; }
+
+  // ---------- Tree builder ----------
+  function profile(opts, t) { return opts.r * (1 - t * 0.82) * 0.92; }
+  // Actual outer radius of the stacked cones at height y (so items sit on the needles, not inside them)
+  function foliageRadius(opts, y) { const trunkH = opts.h * 0.12, bodyH = opts.h - trunkH, tierH = bodyH / opts.tiers * 1.55; let best = 0; for (let i = 0; i < opts.tiers; i++) { const t = i / opts.tiers; const r = opts.r * (1 - t * 0.82) * 1.04; const y0 = trunkH + t * bodyH + tierH * 0.45 - tierH / 2, y1 = y0 + tierH; if (y >= y0 && y <= y1) best = Math.max(best, r * (1 - (y - y0) / tierH)); } return best; }
+  function buildTree(opts, parent) {
+    const g = new THREE.Group(); parent.add(g);
+    const trunkH = opts.h * 0.12; cyl(opts.r * 0.12, opts.r * 0.16, trunkH, M.darkwood, 0, trunkH / 2, 0, g);
+    const bodyH = opts.h - trunkH; const tierH = bodyH / opts.tiers * 1.55;
+    const foliage = new THREE.MeshStandardMaterial({ color: opts.color, roughness: .95 }); const foliage2 = new THREE.MeshStandardMaterial({ color: opts.color2, roughness: .95 });
+    const snowMat = new THREE.MeshStandardMaterial({ color: 0xf2f6fb, roughness: 1 });
+    for (let i = 0; i < opts.tiers; i++) {
+      const t = i / opts.tiers; const r = opts.r * (1 - t * 0.82); const y = trunkH + t * bodyH + tierH * 0.45;
+      // Two offset cones per tier give a ragged, branchy silhouette
+      const a = cone(r, tierH, foliage, 0, y, 0, g, 9); a.rotation.y = i * 0.7;
+      const b = cone(r * 0.93, tierH * 0.92, foliage2, 0, y + tierH * 0.06, 0, g, 9); b.rotation.y = i * 0.7 + Math.PI / 9; b.scale.set(1.04, 1, 0.96);
+      if (opts.snow) { const s = cone(r * 0.99, tierH * 0.26, snowMat, 0, y + tierH * 0.4, 0, g, 9); s.rotation.y = i * 0.7; }
+    }
+    // Garland: a tube wound in a helix
+    const pts = []; for (let i = 0; i <= 160; i++) { const t = i / 160; const a = t * Math.PI * 2 * (opts.tiers * 0.9) + 1; const yy = trunkH + 0.2 + t * bodyH * 0.9; const r = foliageRadius(opts, yy) + 0.02; pts.push(new THREE.Vector3(Math.cos(a) * r, yy, Math.sin(a) * r)); }
+    const garland = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 220, 0.045, 6, false), new THREE.MeshStandardMaterial({ color: opts.garland, emissive: opts.garland, emissiveIntensity: .25, roughness: .4, metalness: .5 })); g.add(garland);
+    // Lights: small bulbs + additive halos
+    const lightCount = Math.round(opts.h * 14); const lgeo = new THREE.SphereGeometry(0.05, 6, 6); const d = new THREE.Object3D();
+    const cols = opts.lights2 ? [opts.lights, opts.lights2] : [opts.lights];
+    cols.forEach(function (col, ci) {
+      const im = new THREE.InstancedMesh(lgeo, new THREE.MeshBasicMaterial({ color: col }), lightCount); let n = 0;
+      const halo = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshBasicMaterial({ map: glowTex, color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .9 }), lightCount);
+      for (let i = 0; i < lightCount; i++) { if (i % cols.length !== ci) continue; const t = i / lightCount; const a = t * Math.PI * 2 * (opts.tiers * 1.6) + 0.5; const yy = trunkH + t * bodyH * 0.96; const r = foliageRadius(opts, yy) + 0.03; d.position.set(Math.cos(a) * r, yy, Math.sin(a) * r); d.rotation.set(0, 0, 0); d.updateMatrix(); im.setMatrixAt(n, d.matrix); halo.setMatrixAt(n, d.matrix); n++; }
+      im.count = n; halo.count = n; halo.userData.billboard = true; g.add(im); g.add(halo); g.userData.halos = (g.userData.halos || []).concat(halo);
+    });
+    const glow = new THREE.PointLight(opts.lights, 1.6, opts.h * 2.4, 2); glow.position.y = opts.h * 0.5; g.add(glow);
+    // Ground pool of light
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(opts.r * 4.2, opts.r * 4.2), new THREE.MeshBasicMaterial({ map: glowTex, color: opts.lights, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .35 })); pool.rotation.x = -Math.PI / 2; pool.position.y = 0.02; g.add(pool);
+    const topY = opts.h + 0.25;
+    if (opts.topper === 'star') { const star = new THREE.Mesh(starGeo(0.6, 0.25), M.gold); star.position.y = topY; g.add(star); const pl = new THREE.PointLight(0xffd27a, 2, 7); pl.position.y = topY; g.add(pl); g.userData.spin = star; const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffe2a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .9 })); h.scale.set(2.6, 2.6, 1); h.position.y = topY; g.add(h); }
+    else if (opts.topper === 'bell') { const bell = cone(0.3, 0.46, M.gold, 0, topY, 0, g, 16); bell.rotation.x = Math.PI; sphere(0.08, M.gold, 0, topY - 0.28, 0, g, 8); cyl(0.05, 0.05, 0.12, M.gold, 0, topY + 0.28, 0, g); }
+    else if (opts.topper === 'nose') { const nose = sphere(0.3, new THREE.MeshStandardMaterial({ color: 0xff3b2f, emissive: 0xff2a1a, emissiveIntensity: 1.6, roughness: .3 }), 0, topY, 0, g, 16); const pl = new THREE.PointLight(0xff4a3a, 2.2, 7); pl.position.y = topY; g.add(pl); g.userData.pulse = nose; const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff6a5a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .8 })); h.scale.set(2.2, 2.2, 1); h.position.y = topY; g.add(h); g.userData.noseHalo = h; }
+    return { group: g, h: opts.h, trunkH: trunkH, bodyH: bodyH, opts: opts };
+  }
+  // Ornament shapes: each is a list of parts. Parts without a fixed color take the picker color.
+  function partM(x, y, z, rx, ry, rz, sx, sy, sz) { const o = new THREE.Object3D(); o.position.set(x || 0, y || 0, z || 0); o.rotation.set(rx || 0, ry || 0, rz || 0); o.scale.set(sx || 1, sy || sx || 1, sz || sx || 1); o.updateMatrix(); return o.matrix; }
+  const GOLD = 0xe4b25a, CREAM = 0xf6f0e0;
+  const SHAPES = {
+    cane: { label: '지팡이', parts: [
+      { geo: new THREE.CylinderGeometry(0.028, 0.028, 0.26, 10), m: partM(0, -0.03, 0) },
+      { geo: new THREE.TorusGeometry(0.07, 0.028, 8, 14, Math.PI), m: partM(0.07, 0.1, 0) },
+      { geo: new THREE.TorusGeometry(0.03, 0.009, 6, 12), m: partM(0, 0.03, 0, Math.PI / 2), color: CREAM, rough: .6, metal: 0 },
+      { geo: new THREE.TorusGeometry(0.03, 0.009, 6, 12), m: partM(0, -0.05, 0, Math.PI / 2), color: CREAM, rough: .6, metal: 0 },
+      { geo: new THREE.TorusGeometry(0.03, 0.009, 6, 12), m: partM(0, -0.13, 0, Math.PI / 2), color: CREAM, rough: .6, metal: 0 } ] },
+    star: { label: '별', parts: [
+      { geo: null, m: partM(0, 0, -0.02) },
+      { geo: new THREE.TorusGeometry(0.022, 0.006, 6, 12), m: partM(0, 0.165, 0), color: GOLD, metal: .7, rough: .3 } ] },
+    gift: { label: '선물 상자', parts: [
+      { geo: new THREE.BoxGeometry(0.18, 0.18, 0.18), m: partM(0, 0, 0) },
+      { geo: new THREE.BoxGeometry(0.19, 0.19, 0.04), m: partM(0, 0, 0), color: GOLD, metal: .6, rough: .35 },
+      { geo: new THREE.BoxGeometry(0.04, 0.19, 0.19), m: partM(0, 0, 0), color: GOLD, metal: .6, rough: .35 },
+      { geo: new THREE.TorusGeometry(0.035, 0.012, 6, 12), m: partM(-0.04, 0.115, 0, 0, 0, 0.5), color: GOLD, metal: .6, rough: .35 },
+      { geo: new THREE.TorusGeometry(0.035, 0.012, 6, 12), m: partM(0.04, 0.115, 0, 0, 0, -0.5), color: GOLD, metal: .6, rough: .35 },
+      { geo: new THREE.CylinderGeometry(0.004, 0.004, 0.08, 6), m: partM(0, 0.15, 0), color: GOLD } ] }
+  };
+  function starGeo(R, r) { const s = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 - Math.PI / 2; const rr = i % 2 ? r : R; i ? s.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : s.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } s.closePath(); return new THREE.ExtrudeGeometry(s, { depth: 0.08, bevelEnabled: false }); }
+  SHAPES.star.parts[0].geo = starGeo(0.14, 0.06); SHAPES.star.parts[0].geo.translate(0, 0, -0.02);
+  function slot(tree, i) { const t = 0.08 + ((i * 0.6180339887) % 1) * 0.84; const a = i * 2.39996 + Math.floor(i / 7) * 0.3; const y = tree.trunkH + t * tree.bodyH * 0.96; const r = Math.max(foliageRadius(tree.opts, y), foliageRadius(tree.opts, y - 0.2), foliageRadius(tree.opts, y - 0.38)) + 0.11; return { pos: new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r), a: a }; }
+
+  // ---------- Snowman builder (shared by stored snowmen and the one being built) ----------
+  function buildSnowman(parent, x, z, ry, stage, name) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry || 0; parent.add(g);
+    const parts = [[0.55, 0.5], [0.4, 1.3], [0.3, 1.9]];
+    for (let i = 0; i < Math.min(stage, 3); i++) sphere(parts[i][0], M.white, 0, parts[i][1], 0, g, 14);
+    if (stage >= 3) { const car = cone(0.05, 0.26, M.carrot, 0, 1.92, 0.34, g, 8); car.rotation.x = Math.PI / 2; sphere(0.03, M.darkwood, -0.1, 2.0, 0.27, g, 6); sphere(0.03, M.darkwood, 0.1, 2.0, 0.27, g, 6); for (let k = 0; k < 3; k++) sphere(0.03, M.darkwood, 0, 1.4 - k * 0.14, 0.38, g, 6); const hat = cyl(0.22, 0.22, 0.3, M.darkwood, 0, 2.3, 0, g, 12); cyl(0.36, 0.36, 0.04, M.darkwood, 0, 2.17, 0, g, 12); const arm = cyl(0.02, 0.03, 0.7, M.darkwood, 0.55, 1.4, 0, g, 5); arm.rotation.z = -1; const arm2 = cyl(0.02, 0.03, 0.7, M.darkwood, -0.55, 1.4, 0, g, 5); arm2.rotation.z = 1; const scarf = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.07, 8, 16), M.red); scarf.rotation.x = Math.PI / 2; scarf.position.y = 1.62; g.add(scarf); if (name) { const tag = textSprite(name, '#f3ede2', 1.8); tag.position.y = 2.75; g.add(tag); } }
+    return g;
+  }
+
+  // ---------- Build zones ----------
+  ZONES.forEach(function (z, zi) {
+    const root = new THREE.Group(); root.position.copy(z.origin); scene.add(root); z.root = root;
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(z.outdoor ? z.bound + 30 : z.bound + 0.3, 48), z.outdoor ? M.snow : new THREE.MeshStandardMaterial({ color: 0x5a3d26, roughness: .85 })); ground.rotation.x = -Math.PI / 2; root.add(ground);
+    const tree = buildTree(z.tree, root); z.treeObj = tree; colliders.push({ x: z.origin.x, z: z.origin.z, r: z.tree.r * 0.75 });
+    z.ornMeshes = {}; Object.keys(SHAPES).forEach(function (k) { z.ornMeshes[k] = SHAPES[k].parts.map(function (part) { const mat = part.color ? new THREE.MeshStandardMaterial({ color: part.color, roughness: part.rough || .35, metalness: part.metal || .4 }) : new THREE.MeshStandardMaterial({ roughness: .3, metalness: .35 }); const im = new THREE.InstancedMesh(part.geo, mat, CAP); im.count = 0; if (!part.color) im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CAP * 3).fill(1), 3); im.userData.tinted = !part.color; tree.group.add(im); return im; }); });
+    z.snowGroup = new THREE.Group(); root.add(z.snowGroup);
+
+    // Mailbox (red post box) near the tree
+    const mb = new THREE.Group(); mb.position.set(z.mailbox[0], 0, z.mailbox[1]); root.add(mb); cyl(0.05, 0.05, 1.0, M.darkwood, 0, 0.5, 0, mb); const body = box(0.5, 0.42, 0.34, M.red, 0, 1.2, 0, mb); const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.5, 12, 1, false, 0, Math.PI), M.red); lid.rotation.z = Math.PI / 2; lid.position.set(0, 1.41, 0); mb.add(lid); box(0.3, 0.04, 0.02, M.gold, 0, 1.28, 0.175, mb); const flag = box(0.04, 0.22, 0.08, M.gold, 0.28, 1.3, 0, mb); const mlabel = textSprite('우체통', '#f3ede2', 1.6); mlabel.position.y = 1.85; mb.add(mlabel); mb.rotation.y = Math.atan2(-z.mailbox[0], -z.mailbox[1]) + Math.PI;
+    colliders.push({ x: z.origin.x + z.mailbox[0], z: z.origin.z + z.mailbox[1], r: 0.45 }); z.mailboxPos = { x: z.mailbox[0], z: z.mailbox[1] };
+
+    if (z.id === 'plaza') {
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const x = Math.cos(a) * 10, zz = Math.sin(a) * 10; cyl(0.08, 0.1, 3.2, M.darkwood, x, 1.6, zz, root); sphere(0.22, M.glass, x, 3.35, zz, root, 10); const pl = new THREE.PointLight(0xffd9a0, 0.8, 9, 2); pl.position.set(x, 3.3, zz); root.add(pl); const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffd9a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: .7 })); h.scale.set(1.6, 1.6, 1); h.position.set(x, 3.35, zz); root.add(h); colliders.push({ x: z.origin.x + x, z: z.origin.z + zz, r: 0.3 }); }
+      for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 + 0.5; const x = Math.cos(a) * 6.2, zz = Math.sin(a) * 6.2; const b = box(1.8, 0.1, 0.5, M.wood, x, 0.5, zz, root, -a); box(0.1, 0.5, 0.5, M.darkwood, 0, -0.25, 0, b); box(1.8, 0.08, 0.5, M.snow, 0, 0.09, 0, b); colliders.push({ x: z.origin.x + x, z: z.origin.z + zz, r: 1 }); }
+      [[1.6, 4.2, 0.8, 0xb8332b], [2.4, 3.6, 0.6, 0x2b6f9e], [1.4, 3.2, 0.5, 0xe4b25a]].forEach(function (p, i) { const gift = box(p[2], p[2], p[2], new THREE.MeshStandardMaterial({ color: p[3], roughness: .6 }), p[0], p[2] / 2, p[1], root, i); box(p[2] * 1.02, p[2] * 0.12, p[2] * 1.02, M.gold, 0, 0, 0, gift); });
+      const ring = new THREE.Mesh(new THREE.RingGeometry(z.tree.r + 0.6, z.tree.r + 1.1, 48), M.stone); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.01; root.add(ring);
+      for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + 0.2; const x = Math.cos(a) * 22, zz = Math.sin(a) * 22; const h = 3 + (i % 3); const hm = box(4, h, 4, M.darkwood, x, h / 2, zz, root, -a); cone(3.1, 2, M.snow, 0, h / 2 + 1, 0, hm, 4).rotation.y = Math.PI / 4; box(0.6, 0.6, 0.05, M.glass, 0, 0.2, 2.02, hm); }
+    }
+    if (z.id === 'workshop') {
+      const R = z.bound + 0.3, H = 4.4;
+      const walls = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0x7a583a, roughness: .95, side: THREE.BackSide })); walls.position.y = H / 2; root.add(walls);
+      for (let i = 0; i < 9; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(R - 0.02, 0.07, 6, 36), M.darkwood); ring.rotation.x = Math.PI / 2; ring.position.y = 0.3 + i * 0.48; root.add(ring); }
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(R + 0.4, 3.2, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0x4a3222, roughness: 1, side: THREE.BackSide })); roof.position.y = H + 1.6; root.add(roof);
+      const fp = box(2, 2.2, 0.8, M.stone, 0, 1.1, -R + 0.5, root); box(1.2, 1.1, 0.4, new THREE.MeshBasicMaterial({ color: 0x1a0d06 }), 0, -0.4, 0.25, fp);
+      const fire = new THREE.PointLight(0xff7a2a, 2.2, 9, 2); fire.position.set(0, 0.8, -R + 1.2); root.add(fire); z.fire = fire;
+      const ember = cone(0.35, 0.7, new THREE.MeshBasicMaterial({ color: 0xffa040 }), 0, 0.6, -R + 0.8, root, 8); z.ember = ember; colliders.push({ x: z.origin.x, z: z.origin.z - R + 0.5, r: 1.3 });
+      [[-4.2, 1.2], [4.2, 1.2]].forEach(function (p, i) { box(2.6, 0.12, 1, M.wood, p[0], 0.9, p[1], root); box(0.1, 0.9, 0.9, M.darkwood, p[0] - 1.2, 0.45, p[1], root); box(0.1, 0.9, 0.9, M.darkwood, p[0] + 1.2, 0.45, p[1], root); for (let k = 0; k < 3; k++) { const c = [0xb8332b, 0x2b6f9e, 0x3f9d5a][(k + i) % 3]; const gift = box(0.4, 0.4, 0.4, new THREE.MeshStandardMaterial({ color: c, roughness: .6 }), p[0] - 0.8 + k * 0.8, 1.16, p[1], root); box(0.41, 0.06, 0.41, M.gold, 0, 0, 0, gift); } colliders.push({ x: z.origin.x + p[0], z: z.origin.z + p[1], r: 1.5 }); });
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const cc = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.05, 8, 16, Math.PI), i % 2 ? M.red : M.white); cc.position.set(Math.cos(a) * (z.tree.r + 0.4), 0.9, Math.sin(a) * (z.tree.r + 0.4)); cc.rotation.y = a; root.add(cc); cyl(0.05, 0.05, 0.9, i % 2 ? M.white : M.red, Math.cos(a) * (z.tree.r + 0.65), 0.45, Math.sin(a) * (z.tree.r + 0.65), root); }
+      const warm = new THREE.PointLight(0xffc98a, 1.1, 18, 2); warm.position.y = 3.6; root.add(warm);
+    }
+    if (z.id === 'rudolph') {
+      const st = new THREE.Group(); st.position.set(0, 0, -8.5); root.add(st);
+      box(7, 0.2, 5, M.darkwood, 0, 0.1, 0, st); box(0.3, 3, 5, M.wood, -3.4, 1.5, 0, st); box(0.3, 3, 5, M.wood, 3.4, 1.5, 0, st); box(7, 3, 0.3, M.wood, 0, 1.5, -2.4, st);
+      const roof = box(7.8, 0.2, 5.8, M.darkwood, 0, 3.2, 0, st); roof.rotation.x = -0.18; const rs = box(7.8, 0.3, 5.8, M.snow, 0, 3.45, 0, st); rs.rotation.x = -0.18;
+      const lant = new THREE.PointLight(0xffc98a, 1.2, 10, 2); lant.position.set(0, 2.6, 1.8); st.add(lant); sphere(0.15, M.glass, 0, 2.6, 1.8, st, 8);
+      colliders.push({ x: z.origin.x - 3.4, z: z.origin.z - 8.5, r: 0.6 }, { x: z.origin.x + 3.4, z: z.origin.z - 8.5, r: 0.6 }, { x: z.origin.x, z: z.origin.z - 10.9, r: 3.6 });
+      const deer = new THREE.Group(); deer.position.set(0.4, 0.2, -0.6); st.add(deer); const fur = new THREE.MeshStandardMaterial({ color: 0x8a5a36, roughness: .9 });
+      box(1.5, 0.8, 0.7, fur, 0, 1.1, 0, deer); for (let i = 0; i < 4; i++) cyl(0.08, 0.07, 0.8, fur, (i % 2 ? 0.55 : -0.55), 0.4, (i < 2 ? 0.22 : -0.22), deer);
+      const head = box(0.5, 0.45, 0.5, fur, 0.95, 1.65, 0, deer); const nose = sphere(0.1, new THREE.MeshStandardMaterial({ color: 0xff3b2f, emissive: 0xff2a1a, emissiveIntensity: 2 }), 0.3, -0.05, 0, head, 10); const nl = new THREE.PointLight(0xff5a4a, 1.2, 4); nl.position.set(0.35, 0, 0); head.add(nl);
+      for (let s = -1; s <= 1; s += 2) { const ant = cyl(0.02, 0.03, 0.6, M.darkwood, 0, 0.5, s * 0.16, head); ant.rotation.z = s * 0.3; cyl(0.015, 0.02, 0.3, M.darkwood, 0.1, 0.5, s * 0.18, head).rotation.z = 0.9 * -s; }
+      cyl(0.1, 0.5, 0.25, new THREE.MeshStandardMaterial({ color: 0xd9b45a, roughness: 1 }), -2.2, 0.25, 0.8, st, 7);
+      for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; if (a > 0.9 && a < 2.25) continue; const x = Math.cos(a) * 11.5, zz = Math.sin(a) * 11.5; cyl(0.07, 0.07, 1.1, M.wood, x, 0.55, zz, root, 6); box(5.1, 0.08, 0.08, M.wood, Math.cos(a + 0.224) * 11.5, 0.75, Math.sin(a + 0.224) * 11.5, root, -(a + 0.224)); }
+      for (let i = 0; i < 12; i++) { const a = i * 0.52; const r = 4.5 + (i % 3); cone(0.6 + (i % 2) * 0.3, 2 + (i % 3) * 0.7, new THREE.MeshStandardMaterial({ color: 0x1f4630, roughness: 1 }), Math.cos(a) * r + (i % 2 ? 7 : -7), 1.1, Math.sin(a) * r + 6, root, 8); }
+      const moon = new THREE.PointLight(0xcfe4ff, 0.6, 60); moon.position.set(-10, 20, -10); root.add(moon);
+    }
+    // Signposts to other zones
+    z.portals = [];
+    ZONES.forEach(function (other, oi) { if (oi === zi) return; const k = z.portals.length; const a = (z.id === 'workshop' ? [Math.PI * 0.72, Math.PI * 0.28] : [Math.PI * 0.78, Math.PI * 0.22])[k]; const rr = z.outdoor ? z.bound - 2.5 : z.bound - 1.1; const x = Math.cos(a) * rr, zz = Math.sin(a) * rr;
+      const post = new THREE.Group(); post.position.set(x, 0, zz); root.add(post); cyl(0.07, 0.09, 2.2, M.darkwood, 0, 1.1, 0, post); const plank = box(1.9, 0.42, 0.08, M.wood, 0, 2.05, 0, post); plank.rotation.set(0, Math.atan2(-x, -zz), 0);
+      const label = textSprite('→ ' + other.name, other.accent); label.position.set(0, 2.05, 0); post.add(label);
+      const ringL = new THREE.PointLight(new THREE.Color(other.accent), 0.9, 5, 2); ringL.position.set(0, 1.6, 0); post.add(ringL);
+      const pad = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.15, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(other.accent), transparent: true, opacity: .7 })); pad.rotation.x = -Math.PI / 2; pad.position.set(x * 0.9, 0.02, zz * 0.9); root.add(pad);
+      z.portals.push({ x: z.origin.x + x * 0.9, z: z.origin.z + zz * 0.9, to: oi, pad: pad }); });
+  });
+
+  // Snow particles
+  const SNOW_N = isTouch ? 900 : 1600; const snowPos = new Float32Array(SNOW_N * 3); for (let i = 0; i < SNOW_N; i++) { snowPos[i * 3] = (Math.random() - .5) * 40; snowPos[i * 3 + 1] = Math.random() * 14; snowPos[i * 3 + 2] = (Math.random() - .5) * 40; }
+  const snowGeo = new THREE.BufferGeometry(); snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
+  const snowPts = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.09, transparent: true, opacity: .85, sizeAttenuation: true, depthWrite: false })); scene.add(snowPts);
+
+  // ---------- Player ----------
+  const player = { zone: 0, x: 0, z: 11, yaw: 0, pitch: -0.05, speed: 3.4, radius: 0.35 };
+  const hot = window.claude && window.claude.hot; if (hot && hot.data && typeof hot.data.x === 'number') Object.assign(player, hot.data);
+  if (hot && hot.snapshot) hot.snapshot(function () { return { zone: player.zone, x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch }; });
+  function curZone() { return ZONES[player.zone]; } function worldX() { return curZone().origin.x + player.x; } function worldZ() { return curZone().origin.z + player.z; }
+  let shake = 0; // camera wobble when hit by a snowball
+
+  // ---------- Remote visitors (the realtime layer calls these) ----------
+  const remote = new Map(); const localListeners = [];
+  window.xmas = {
+    upsertVisitor: function (id, s) { let v = remote.get(id); if (!v) { v = buildAvatar(id, s.name || '친구', scene); v.userData.body = v; v.userData.target = null; remote.set(id, v); } v.userData.zone = s.zone; v.userData.id = id; const o = ZONES[s.zone || 0].origin; const tx = o.x + s.x, tz = o.z + s.z; if (!v.userData.target) v.position.set(tx, 0, tz); v.userData.target = { x: tx, z: tz, yaw: s.yaw || 0 }; v.visible = s.zone === player.zone; updateVisitors(); },
+    removeVisitor: function (id) { const v = remote.get(id); if (v) { scene.remove(v); remote.delete(id); updateVisitors(); } },
+    onLocalState: function (fn) { localListeners.push(fn); },
+    /** Sync layer -> page: another visitor added an ornament or snowman. */
+    applyRemoteItem: function (zoneId, item) { const z = ZONES.find(function (z) { return z.id === zoneId; }); if (!z) return; if (item.type === 'snowman') { data.snowmen[z.id].push(item); rebuildSnowmen(z); } else { data.ornaments[z.id].push(item); rebuildTree(z); } updateFill(); },
+    /** Sync layer -> page: a snowball hit me. */
+    hitMe: function (fromName) { shake = 1; showToast((fromName || '누군가') + '의 눈덩이에 맞았어요 ❄'); },
+    /** Page -> sync layer: register a callback for events I cause (throw, hit, ornament, snowman, wish). */
+    onEvent: function (fn) { eventListeners.push(fn); }
+  };
+  const eventListeners = []; function emit(ev) { eventListeners.forEach(function (fn) { fn(ev); }); }
+  function updateVisitors() { let n = 1; remote.forEach(function (v) { v.visible = v.userData.zone === player.zone; if (v.visible) n++; }); $('visitorCount').textContent = n + '명 함께 있음'; }
+
+  // ---------- Tree + snowmen contents ----------
+  const dummy = new THREE.Object3D(); const tmpColor = new THREE.Color();
+  const LEGACY = { ball: 'star', drop: 'cane', cube: 'gift' }; function shapeOf(o) { return o.shape in SHAPES ? o.shape : (LEGACY[o.shape] || 'star'); }
+  const partMat = new THREE.Matrix4();
+  // Writes ornament idx of zone z into instance k of every part mesh of its shape, at scale sc
+  function writeInst(z, idx, k, sc) { const o = data.ornaments[z.id][idx]; const shape = shapeOf(o); const s = slot(z.treeObj, idx); dummy.position.copy(s.pos); dummy.position.y -= 0.12; dummy.rotation.set(0, -s.a + Math.PI / 2, 0); dummy.scale.setScalar(Math.max(0.001, sc || 1)); dummy.updateMatrix();
+    z.ornMeshes[shape].forEach(function (im, pi) { partMat.multiplyMatrices(dummy.matrix, SHAPES[shape].parts[pi].m); im.setMatrixAt(k, partMat); if (im.userData.tinted) im.setColorAt(k, tmpColor.set(o.color)); im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }); dummy.scale.setScalar(1); }
+  function rebuildTree(z) { const counts = {}; Object.keys(SHAPES).forEach(function (k) { counts[k] = 0; });
+    data.ornaments[z.id].forEach(function (o, idx) { const shape = shapeOf(o); writeInst(z, idx, counts[shape]++, 1); });
+    Object.keys(counts).forEach(function (k) { z.ornMeshes[k].forEach(function (im) { im.count = counts[k]; }); }); }
+  function rebuildSnowmen(z) { while (z.snowGroup.children.length) z.snowGroup.remove(z.snowGroup.children[0]); data.snowmen[z.id].forEach(function (s) { buildSnowman(z.snowGroup, s.x, s.z, s.ry, 3, s.name); }); }
+  ZONES.forEach(function (z) { rebuildTree(z); rebuildSnowmen(z); });
+  function snowmanColliders() { const out = []; ZONES.forEach(function (z) { data.snowmen[z.id].forEach(function (s) { out.push({ x: z.origin.x + s.x, z: z.origin.z + s.z, r: 0.6 }); }); }); return out; }
+  let dynColliders = snowmanColliders();
+  function updateFill() { const z = curZone(); const n = itemsOn(z); $('fillNum').textContent = n; $('fillBar').style.width = (n / CAP * 100) + '%'; $('fillBar').style.background = n >= CAP ? 'var(--accent-2)' : 'var(--accent)'; }
+
+  // ---------- Zone travel ----------
+  const fade = $('fade'); let traveling = false;
+  function applyZoneLook() { const z = curZone(); scene.background.setHex(z.sky); scene.fog.color.setHex(z.fog); scene.fog.near = z.fogNear; scene.fog.far = z.fogFar; snowPts.visible = z.outdoor; $('zoneName').textContent = z.name; $('zoneSub').textContent = z.sub; updateFill(); updateVisitors(); }
+  function travel(toIndex) { if (traveling || toIndex === player.zone) return; traveling = true; fade.classList.add('on'); closeSheets(); cancelSnowman(); view = null; $('viewer').hidden = true; $('dock').style.opacity = ''; $('stick').style.opacity = ''; cine = null; $('hud').classList.remove('cinema'); setCineText(null); setTimeout(function () { player.zone = toIndex; const z = curZone(); player.x = z.spawn[0]; player.z = z.spawn[1]; player.yaw = Math.atan2(player.x, player.z); player.pitch = -0.05; applyZoneLook(); joinZone(); showToast(z.name + '에 도착했어요'); setTimeout(function () { fade.classList.remove('on'); traveling = false; }, 150); }, 480); }
+  applyZoneLook();
+
+  // ---------- Entry (nickname) ----------
+  const enter = $('enter'); const nickInput = $('nickInput');
+  let me = null; function setNick(n) { data.nick = n; store.save('nick', n); $('meName').textContent = '나: ' + n; if (me) scene.remove(me); me = buildAvatar(uid || data.me, n, scene); me.position.set(worldX(), 0, worldZ()); me.rotation.y = player.yaw; }
+  async function bootAuth() {
+    if (!sb) { if (data.nick) { setNick(data.nick); enter.hidden = true; } return; }
+    try { const r = await sb.auth.getSession(); const sess = r.data && r.data.session; if (sess) { uid = sess.user.id; const p = await sb.from('profiles').select('nick').eq('id', uid).maybeSingle(); if (p.data && p.data.nick) { setNick(p.data.nick); enter.hidden = true; await goOnline(); return; } } } catch (e) { console.warn('auth', e); }
+    nickInput.value = data.nick || '';
+  }
+  async function goOnline() {
+    if (!sb || !uid) return;
+    try { await loadAll(); online = true; watchDb(); await joinZone(); showToast('연결됐어요. 다른 사람의 장식과 발자국이 보여요'); }
+    catch (e) { console.warn('online', e); online = false; showToast('서버에 닿지 못해 내 기기 저장으로 돌아가요'); }
+  }
+  async function loadAll() {
+    const o = await sb.from('ornaments').select('*').order('id'); const sn = await sb.from('snowmen').select('*').order('id');
+    if (o.error) throw o.error; if (sn.error) throw sn.error;
+    ZONES.forEach(function (z) { data.ornaments[z.id] = []; data.snowmen[z.id] = []; });
+    o.data.forEach(function (r) { if (data.ornaments[r.zone]) data.ornaments[r.zone].push(mapOrn(r)); });
+    sn.data.forEach(function (r) { if (data.snowmen[r.zone]) data.snowmen[r.zone].push(mapSnow(r)); });
+    ZONES.forEach(function (z) { rebuildTree(z); rebuildSnowmen(z); }); dynColliders = snowmanColliders(); updateFill();
+  }
+  function addOrnRow(r) { const list = data.ornaments[r.zone]; if (!list || list.some(function (x) { return x.id === r.id; })) return; list.push(mapOrn(r)); list.sort(byId); const z = ZONES.find(function (z) { return z.id === r.zone; }); rebuildTree(z); updateFill(); }
+  function addSnowRow(r) { const list = data.snowmen[r.zone]; if (!list || list.some(function (x) { return x.id === r.id; })) return; list.push(mapSnow(r)); const z = ZONES.find(function (z) { return z.id === r.zone; }); rebuildSnowmen(z); dynColliders = snowmanColliders(); }
+  function watchDb() { sb.channel('db-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ornaments' }, function (p) { addOrnRow(p.new); }).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'snowmen' }, function (p) { addSnowRow(p.new); }).subscribe(); }
+  async function joinZone() {
+    if (!online) return; if (zoneCh) { try { await sb.removeChannel(zoneCh); } catch (e) {} zoneCh = null; }
+    Array.from(remote.keys()).forEach(function (id) { window.xmas.removeVisitor(id); });
+    const z = curZone(); const ch = sb.channel('zone:' + z.id, { config: { presence: { key: uid }, broadcast: { self: false } } });
+    ch.on('presence', { event: 'sync' }, function () { const st = ch.presenceState(); const seen = {}; Object.keys(st).forEach(function (k) { if (k === uid) return; const arr = st[k]; const p = arr && arr[arr.length - 1]; if (!p || typeof p.x !== 'number') return; seen[k] = true; window.xmas.upsertVisitor(k, { zone: player.zone, x: p.x, z: p.z, yaw: p.yaw, name: p.nick }); }); Array.from(remote.keys()).forEach(function (id) { if (!seen[id]) window.xmas.removeVisitor(id); }); })
+      .on('broadcast', { event: 'throw' }, function (m) { if (m.payload && m.payload.from !== uid) spawnRemoteBall(m.payload); })
+      .on('broadcast', { event: 'hit' }, function (m) { if (m.payload && m.payload.target === uid) window.xmas.hitMe(m.payload.from); })
+      .subscribe(async function (status) { if (status === 'SUBSCRIBED') { try { await ch.track({ x: player.x, z: player.z, yaw: player.yaw, nick: data.nick }); } catch (e) {} } });
+    zoneCh = ch;
+  }
+  let lastTrack = 0, lastTracked = { x: 1e9, z: 1e9, yaw: 0 };
+  function trackMe(now) { if (!zoneCh || now - lastTrack < 200) return; if (Math.abs(player.x - lastTracked.x) < 0.02 && Math.abs(player.z - lastTracked.z) < 0.02 && Math.abs(player.yaw - lastTracked.yaw) < 0.03) return; lastTrack = now; lastTracked = { x: player.x, z: player.z, yaw: player.yaw }; zoneCh.track({ x: player.x, z: player.z, yaw: player.yaw, nick: data.nick }).catch(function () {}); }
+  function spawnRemoteBall(p) { const z = curZone(); const b = sphere(0.11, M.white, 0, 0, 0, scene, 8); const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(1, 0, 0), p.pitch || 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), p.yaw || 0); b.position.set(z.origin.x + p.x, 1.3, z.origin.z + p.z).addScaledVector(dir, 0.45); balls.push({ m: b, v: dir.multiplyScalar(11).add(new THREE.Vector3(0, 2.0, 0)), t: 0, remote: true }); const v = remote.get(p.from); if (v) v.userData.throwT = 0.4; }
+  window.xmas.onEvent(function (ev) { if (!zoneCh) return; if (ev.type === 'throw') zoneCh.send({ type: 'broadcast', event: 'throw', payload: { from: uid, x: ev.x, z: ev.z, yaw: ev.yaw, pitch: ev.pitch } }); if (ev.type === 'hit') zoneCh.send({ type: 'broadcast', event: 'hit', payload: { target: ev.target, from: ev.from } }); if (ev.type === 'wish' && online) sb.from('wishes').insert({ zone: ev.zone, owner: uid, text: ev.text || '' }).then(function () {}, function () {}); });
+  bootAuth();
+  $('enterBtn').addEventListener('click', async function () { const n = nickInput.value.trim(); if (n.length < 2) { nickInput.focus(); return showToast('닉네임을 2자 이상 적어 주세요'); } const btn = $('enterBtn'); btn.disabled = true; btn.textContent = '입장 중…';
+    if (sb) { try { if (!uid) { const r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; uid = r.data.user.id; } const up = await sb.from('profiles').upsert({ id: uid, nick: n }); if (up.error) throw up.error; } catch (e) { console.warn('signin', e); uid = null; showToast('서버에 연결하지 못해 혼자 놀기 모드로 들어가요'); } }
+    setNick(n); enter.hidden = true; btn.disabled = false; btn.textContent = '들어가기'; showToast(n + '님, 광장에 오신 걸 환영해요'); await goOnline(); });
+  nickInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') $('enterBtn').click(); });
+
+  // ---------- Input ----------
+  const keys = {}; addEventListener('keydown', function (e) { if (sheetOpen() || !enter.hidden) return; keys[e.code] = true; if (e.code === 'Space') { e.preventDefault(); throwSnowball(); } if (/^Arrow/.test(e.code)) e.preventDefault(); }); addEventListener('keyup', function (e) { keys[e.code] = false; });
+  let locked = false, dragging = false, lastX = 0, lastY = 0; const hint = $('hint');
+  canvas.addEventListener('click', function () { if (!isTouch && !sheetOpen() && enter.hidden && canvas.requestPointerLock) { try { canvas.requestPointerLock(); } catch (e) {} } });
+  document.addEventListener('pointerlockchange', function () { locked = document.pointerLockElement === canvas; hint.style.opacity = locked ? '0' : '1'; });
+  addEventListener('mousemove', function (e) { if (locked) look(e.movementX, e.movementY); else if (dragging) { look(e.clientX - lastX, e.clientY - lastY); lastX = e.clientX; lastY = e.clientY; } });
+  canvas.addEventListener('mousedown', function (e) { if (!locked) { dragging = true; lastX = e.clientX; lastY = e.clientY; } }); addEventListener('mouseup', function () { dragging = false; });
+  function look(dx, dy) { player.yaw -= dx * 0.0022; player.pitch = Math.max(-1.1, Math.min(1.1, player.pitch - dy * 0.0022)); }
+  const stick = $('stick'), knob = $('knob'); let stickId = null, stickVec = { x: 0, y: 0 }, lookId = null, lookLast = null;
+  function stickPos(t) { const r = stick.getBoundingClientRect(); const dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2); const len = Math.hypot(dx, dy), max = r.width / 2 - 20; const k = len > max ? max / len : 1; return { x: dx * k / max, y: dy * k / max, px: dx * k, py: dy * k }; }
+  addEventListener('touchstart', function (e) { if (sheetOpen() || !enter.hidden) return; for (const t of e.changedTouches) { const el = document.elementFromPoint(t.clientX, t.clientY); if (stickId === null && (el === stick || el === knob)) { stickId = t.identifier; const p = stickPos(t); stickVec = p; knob.style.transform = 'translate(' + p.px + 'px,' + p.py + 'px)'; } else if (lookId === null && el === canvas) { lookId = t.identifier; lookLast = { x: t.clientX, y: t.clientY }; } } }, { passive: true });
+  addEventListener('touchmove', function (e) { for (const t of e.changedTouches) { if (t.identifier === stickId) { const p = stickPos(t); stickVec = p; knob.style.transform = 'translate(' + p.px + 'px,' + p.py + 'px)'; } else if (t.identifier === lookId) { look((t.clientX - lookLast.x) * 1.7, (t.clientY - lookLast.y) * 1.7); lookLast = { x: t.clientX, y: t.clientY }; } } if (stickId !== null || lookId !== null) e.preventDefault(); }, { passive: false });
+  function endTouch(e) { for (const t of e.changedTouches) { if (t.identifier === stickId) { stickId = null; stickVec = { x: 0, y: 0 }; knob.style.transform = ''; } if (t.identifier === lookId) lookId = null; } } addEventListener('touchend', endTouch); addEventListener('touchcancel', endTouch);
+  function tryMove(nx, nz) { const z = curZone(); const r = player.radius; const d = Math.hypot(nx, nz); const lim = z.bound - r; if (d > lim) { nx *= lim / d; nz *= lim / d; } const wx = z.origin.x + nx, wz = z.origin.z + nz; for (const c of colliders) { if (Math.hypot(wx - c.x, wz - c.z) < c.r + r) return false; } for (const c of dynColliders) { if (Math.hypot(wx - c.x, wz - c.z) < c.r + r) return false; } player.x = nx; player.z = nz; return true; }
+
+  // ---------- Sheets / toast ----------
+  const sheets = ['sheetMap', 'sheetWish', 'sheetOrn', 'sheetMail'].map($);
+  function sheetOpen() { return sheets.some(function (s) { return s.classList.contains('open'); }); }
+  function openSheet(id) { closeSheets(); const s = $(id); s.classList.add('open'); s.setAttribute('aria-hidden', 'false'); if (document.pointerLockElement) document.exitPointerLock(); keys.KeyW = keys.KeyA = keys.KeyS = keys.KeyD = false; }
+  function closeSheets() { sheets.forEach(function (s) { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); }); }
+  document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', closeSheets); });
+  let toastT; function showToast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, 2400); }
+
+  // Map
+  $('mapBtn').addEventListener('click', function () { renderTreeList(); openSheet('sheetMap'); });
+  function treeIcon(z) { return '<svg viewBox="0 0 36 36" fill="none"><path d="M18 4l8 10h-4l6 8h-5l6 8H7l6-8H8l6-8h-4z" fill="#' + z.tree.color.toString(16).padStart(6, '0') + '"/><circle cx="18" cy="4" r="2.2" fill="' + z.accent + '"/><rect x="16" y="30" width="4" height="4" fill="#5a3d26"/></svg>'; }
+  function renderTreeList() { $('treeList').innerHTML = ZONES.map(function (z, i) { const n = itemsOn(z); return '<button class="tree-card' + (i === player.zone ? ' here' : '') + '" data-zone="' + i + '"><span class="ic" style="background:' + z.accent + '22">' + treeIcon(z) + '</span><span><span class="name">' + z.name + (i === player.zone ? ' · 지금 여기' : '') + '</span><span class="desc">' + z.desc + '</span></span><span class="num"><b>' + n + '</b>/ 500</span></button>'; }).join(''); $('treeList').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { travel(+b.dataset.zone); }); }); }
+
+  // Contextual actions: near tree / near mailbox / open snow
+  const actions = $('actions'); let ctx = '';
+  function setContext(c) { if (c === ctx) return; ctx = c; actions.classList.toggle('show', c === 'rolling' && !sheetOpen()); }
+  const dock = $('dock'); let folded = false; try { folded = localStorage.getItem('xmas:dock') === '1'; } catch (e) {} dock.classList.toggle('folded', folded); $('dockTab').addEventListener('click', function () { folded = !folded; dock.classList.toggle('folded', folded); try { localStorage.setItem('xmas:dock', folded ? '1' : '0'); } catch (e) {} });
+  $('actWish').addEventListener('click', function () { $('wishText').value = ''; $('wishCount').textContent = '0'; openSheet('sheetWish'); });
+  $('actOrn').addEventListener('click', function () { if (building) return showToast('눈덩이를 먼저 마무리해 주세요'); if (itemsOn(curZone()) >= CAP) return showToast('이 트리는 가득 찼어요. 다른 트리로 가 볼까요?'); refreshMineBtn(); openSheet('sheetOrn'); });
+  $('actMail').addEventListener('click', function () { const now = new Date(); const open = new Date('2026-12-01T00:00:00+09:00'); const d = Math.ceil((open - now) / 86400000); $('mailDday').textContent = d > 0 ? 'D-' + d : '곧 열려요'; openSheet('sheetMail'); emit({ type: 'mailbox_peek' }); });
+  $('wishText').addEventListener('input', function () { $('wishCount').textContent = this.value.length; });
+
+  // Wish
+  const sparks = [];
+  // Wish: the words float up from the tree top, then take off as a shooting star across the sky while the camera follows
+  const shooting = [];
+  $('wishSend').addEventListener('click', function () { const txt = $('wishText').value.trim(); if (!txt) return showToast('소원을 한 줄 적어 주세요'); const z = curZone(); closeSheets(); emit({ type: 'wish', zone: z.id, text: txt });
+    const top = new THREE.Vector3(z.origin.x, z.treeObj.h + 0.6, z.origin.z);
+    // Direction: away from the player, up into the sky
+    const away = new THREE.Vector3(top.x - worldX(), 0, top.z - worldZ()); if (away.length() < 0.5) away.set(0, 0, -1); away.normalize();
+    const end = top.clone().addScaledVector(away, 34).add(new THREE.Vector3(0, 22, 0));
+    const label = textSprite(txt.length > 18 ? txt.slice(0, 18) + '…' : txt, '#fff3d6', 4.4); label.position.copy(top); label.material.opacity = 0; scene.add(label);
+    const head = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff1c0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); head.scale.set(1.6, 1.6, 1); head.position.copy(top); scene.add(head);
+    const trail = []; for (let i = 0; i < 14; i++) { const t = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffe6a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 })); t.scale.setScalar(1.1 - i * 0.07); t.position.copy(top); scene.add(t); trail.push(t); }
+    const stars = []; for (let i = 0; i < 10; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff6dc, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0 })); sp.scale.setScalar(0.35); sp.position.copy(top); scene.add(sp); stars.push({ s: sp, v: new THREE.Vector3((Math.random() - .5) * 3, 1 + Math.random() * 2, (Math.random() - .5) * 3) }); }
+    shooting.push({ t: 0, top: top, end: end, label: label, head: head, trail: trail, stars: stars, z: z, done: false });
+    // Camera: lift the gaze to the tree top, then follow the star up into the sky, then come back
+    const eye = new THREE.Vector3(worldX(), 1.62, worldZ());
+    cineStart([
+      { to: { pos: eye.clone(), look: top.clone().add(new THREE.Vector3(0, 0.6, 0)) }, dur: 0.9, hold: 1.1, text: '"' + (txt.length > 14 ? txt.slice(0, 14) + '…' : txt) + '"' },
+      { to: { pos: eye.clone(), look: top.clone().lerp(end, 0.55) }, dur: 2.2, hold: 1.0, text: '소원이 밤하늘로 올라가요' },
+      { to: playerView(), dur: 1.0, hold: 0 }
+    ], function () { showToast('소원을 산타가 받았어요 ✦'); }); });
+  function shootingUpdate(dt) { for (let i = shooting.length - 1; i >= 0; i--) { const w = shooting[i]; w.t += dt; const t = w.t;
+      // phase 1 (0–2s): words rise and glow; phase 2 (2–4.6s): star streaks to the sky; then fade
+      if (t < 2) { const k = t / 2; w.label.position.y = w.top.y + k * 1.6; w.label.material.opacity = Math.min(1, k * 3) * (1 - Math.max(0, k - 0.75) * 4); w.head.position.copy(w.label.position).add(new THREE.Vector3(0, -0.25, 0)); w.head.scale.setScalar(1.2 + Math.sin(t * 9) * 0.25); }
+      else { const k = Math.min(1, (t - 2) / 2.6); const e = k * k; const p = new THREE.Vector3().lerpVectors(w.top.clone().add(new THREE.Vector3(0, 1.35, 0)), w.end, e); w.head.position.copy(p); w.head.scale.setScalar(1.6 + e * 2.2); w.head.material.opacity = 1 - Math.max(0, k - 0.85) * 6.6; w.label.material.opacity = 0;
+        for (let j = 0; j < w.trail.length; j++) { const lag = Math.max(0, e - (j + 1) * 0.022); const q = new THREE.Vector3().lerpVectors(w.top.clone().add(new THREE.Vector3(0, 1.35, 0)), w.end, lag); w.trail[j].position.copy(q); w.trail[j].material.opacity = (k > 0.02 ? 0.85 - j * 0.055 : 0) * (1 - Math.max(0, k - 0.85) * 6.6); w.trail[j].scale.setScalar((1.1 - j * 0.06) * (1 + e * 1.5)); }
+        w.stars.forEach(function (st, j) { if (k < 0.15) { st.s.position.copy(w.top).add(new THREE.Vector3(0, 1.35, 0)); st.s.material.opacity = 0.9; } else { st.s.position.addScaledVector(st.v, dt * 2.5); st.v.y -= dt * 1.2; st.s.material.opacity = Math.max(0, st.s.material.opacity - dt * 0.6); } }); }
+      if (t > 5.2) { scene.remove(w.label); scene.remove(w.head); w.trail.forEach(function (s) { scene.remove(s); }); w.stars.forEach(function (st) { scene.remove(st.s); }); shooting.splice(i, 1); } } }
+
+  // Ornament
+  const COLORS = ['#c8463a', '#e4b25a', '#3f9d5a', '#2b6f9e', '#f6f0e0', '#a85ab8']; let ornColor = COLORS[0], ornShape = 'cane'; $('shapes').style.setProperty('--orn', ornColor);
+  $('swatches').innerHTML = COLORS.map(function (c, i) { return '<button style="background:' + c + '" aria-label="색 ' + (i + 1) + '" aria-pressed="' + (i === 0) + '" data-c="' + c + '"></button>'; }).join('');
+  $('swatches').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { ornColor = b.dataset.c; $('shapes').style.setProperty('--orn', ornColor); $('swatches').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); }); });
+  $('shapes').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { ornShape = b.dataset.shape; $('shapes').querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); }); });
+  $('ornSend').addEventListener('click', async function () { const z = curZone(); if (itemsOn(z) >= CAP) return showToast('이 트리는 가득 찼어요'); let item;
+    if (online) { const btn = $('ornSend'); btn.disabled = true; btn.textContent = '거는 중…'; const r = await sb.rpc('hang_ornament', { p_zone: z.id, p_shape: ornShape, p_color: ornColor, p_nick: data.nick }); btn.disabled = false; btn.textContent = '트리에 달기'; if (r.error) { console.warn(r.error); return showToast(/TREE_FULL/.test(r.error.message) ? '이 트리는 가득 찼어요' : '달지 못했어요. 잠시 후 다시 시도해 주세요'); } item = mapOrn(r.data); if (!data.ornaments[z.id].some(function (x) { return x.id === item.id; })) { data.ornaments[z.id].push(item); data.ornaments[z.id].sort(byId); } }
+    else { item = { type: 'ornament', color: ornColor, shape: ornShape, name: data.nick, owner: data.me, at: Date.now() }; data.ornaments[z.id].push(item); store.save('ornaments', data.ornaments); }
+    const idx = data.ornaments[z.id].findIndex(function (x) { return item.id ? x.id === item.id : x === item; }); rebuildTree(z); updateFill(); closeSheets(); emit({ type: 'ornament', zone: z.id, item: item });
+    const mineN = data.ornaments[z.id].filter(isMine).length; pop = { z: z, idx: idx, t: 0 };
+    cineStart([
+      { to: closeupView(z, idx), dur: 1.3, hold: 1.4, text: data.nick + '의 ' + ORD(mineN) + ' 오너먼트' },
+      { to: wideView(z, idx), dur: 1.6, hold: 1.6, text: z.name + ' 트리 · ' + itemsOn(z) + ' / 500' },
+      { to: playerView(), dur: 1.1, hold: 0 }
+    ], function () { showToast('오너먼트가 트리에 걸렸어요 (' + itemsOn(z) + '/500)'); }); });
+  function ORD(n) { return ['', '첫 번째', '두 번째', '세 번째', '네 번째', '다섯 번째', '여섯 번째', '일곱 번째', '여덟 번째', '아홉 번째', '열 번째'][n] || (n + '번째'); }
+
+  // ----- Camera flights -----
+  // Each step: {to:{pos,look}, dur, hold, text}. cine.active blocks input and HUD.
+  let cine = null, pop = null; const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+  function slotWorld(z, idx) { const s = slot(z.treeObj, idx); const n = new THREE.Vector3(Math.cos(s.a), 0, Math.sin(s.a)); return { pos: s.pos.clone().add(z.origin), n: n }; }
+  function closeupView(z, idx) { const w = slotWorld(z, idx); return { pos: w.pos.clone().addScaledVector(w.n, 1.5).add(new THREE.Vector3(0, 0.25, 0)), look: w.pos.clone() }; }
+  function wideView(z, idx) { const w = slotWorld(z, idx); const h = z.treeObj.h; return { pos: z.origin.clone().addScaledVector(w.n, h * 1.15 + z.tree.r).add(new THREE.Vector3(0, h * 0.5, 0)), look: z.origin.clone().add(new THREE.Vector3(0, h * 0.42, 0)) }; }
+  function playerView() { return followCam(); }
+  // Third-person follow camera: behind and above the avatar; drag changes the elevation; clamped inside the zone
+  function followCam() { const z = curZone(); const elev = Math.max(0.12, Math.min(1.1, 0.42 - player.pitch)); const dist = z.outdoor ? 4.4 : 2.6; const back = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw)); const pos = new THREE.Vector3(worldX(), 0, worldZ()).addScaledVector(back, dist * Math.cos(elev)).add(new THREE.Vector3(0, 1.3 + dist * Math.sin(elev), 0)); const lim = z.bound - 0.4; const lx = pos.x - z.origin.x, lz = pos.z - z.origin.z; const d = Math.hypot(lx, lz); if (d > lim) { pos.x = z.origin.x + lx * lim / d; pos.z = z.origin.z + lz * lim / d; } if (!z.outdoor) pos.y = Math.min(pos.y, 3.6); return { pos: pos, look: new THREE.Vector3(worldX(), 1.1, worldZ()) }; }
+  function cineStart(steps, onDone) { const cur = cineCurrent(); cine = { steps: steps, i: 0, t: 0, from: cur, onDone: onDone }; $('hud').classList.add('cinema'); if (document.pointerLockElement) document.exitPointerLock(); setCineText(steps[0].text); }
+  function cineCurrent() { if (cine) return { pos: camPos.clone(), look: camLook.clone() }; return playerView(); }
+  function setCineText(t) { const el = $('cine'); if (t) { el.hidden = false; $('cineText').textContent = t; } else el.hidden = true; }
+  function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function cineUpdate(dt) { const st = cine.steps[cine.i]; cine.t += dt; const k = Math.min(1, cine.t / st.dur); const e = ease(k);
+    // Quadratic arc whose control point is pushed outward from the tree, so the camera never cuts through the foliage
+    const o = curZone().origin; const a = cine.from.pos, b = st.to.pos; if (!st.ctrl) { const mid = a.clone().add(b).multiplyScalar(0.5); const dir = new THREE.Vector3(mid.x - o.x, 0, mid.z - o.z); const ra = Math.hypot(a.x - o.x, a.z - o.z), rb = Math.hypot(b.x - o.x, b.z - o.z); const R = Math.max(ra, rb, curZone().tree.r + 1.8); if (dir.length() < 0.01) dir.set(1, 0, 0); dir.normalize(); st.ctrl = new THREE.Vector3(o.x + dir.x * R, mid.y + 0.6, o.z + dir.z * R); }
+    const q = 1 - e; camPos.set(q * q * a.x + 2 * q * e * st.ctrl.x + e * e * b.x, q * q * a.y + 2 * q * e * st.ctrl.y + e * e * b.y, q * q * a.z + 2 * q * e * st.ctrl.z + e * e * b.z); camLook.lerpVectors(cine.from.look, st.to.look, e); camera.position.copy(camPos); camera.lookAt(camLook);
+    if (cine.t >= st.dur + st.hold) { cine.i++; if (cine.i >= cine.steps.length) { const done = cine.onDone; cine = null; $('hud').classList.remove('cinema'); setCineText(null); if (done) done(); } else { cine.from = { pos: camPos.clone(), look: camLook.clone() }; cine.t = 0; setCineText(cine.steps[cine.i].text); } } }
+  function popUpdate(dt) { if (!pop) return; pop.t += dt; const k = Math.min(1, pop.t / 0.6); const sc = k < 1 ? (1.25 - 0.25 * Math.cos(k * Math.PI * 2.2) ) * Math.min(1, k * 2.2) : 1; setInstScale(pop.z, pop.idx, sc); if (pop.t > 0.8) { setInstScale(pop.z, pop.idx, 1); pop = null; } }
+  function setInstScale(z, idx, sc) { const o = data.ornaments[z.id][idx]; if (!o) return; const shape = shapeOf(o); let k = 0; for (let i = 0; i < idx; i++) if (shapeOf(data.ornaments[z.id][i]) === shape) k++; writeInst(z, idx, k, sc); }
+
+  // ----- My ornaments viewer -----
+  let view = null; // {list:[idx...], i}
+  function refreshMineBtn() { const z = curZone(); const n = data.ornaments[z.id].filter(isMine).length; $('ornMine').hidden = n === 0; $('ornMineN').textContent = n ? '(' + n + ')' : ''; }
+  $('ornMine').addEventListener('click', function () { const z = curZone(); const list = []; data.ornaments[z.id].forEach(function (o, i) { if (isMine(o)) list.push(i); }); if (!list.length) return; closeSheets(); view = { list: list, i: 0, z: z }; showView(); });
+  function showView() { const z = view.z; const idx = view.list[view.i]; const o = data.ornaments[z.id][idx]; const d = new Date(o.at); $('viewer').hidden = false; $('vIndex').textContent = (view.i + 1) + ' / ' + view.list.length; $('vTitle').textContent = ORD(view.i + 1) + ' 오너먼트'; $('vSub').textContent = SHAPES[shapeOf(o)].label + ' · ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' · 트리 ' + (idx + 1) + '번 자리'; $('vNext').textContent = view.i + 1 < view.list.length ? '다음 ›' : '처음으로'; cineStart([{ to: closeupView(z, idx), dur: 1.2, hold: 1e9 }]); $('hud').classList.remove('cinema'); setCineText(null); $('dock').style.opacity = 0; $('stick').style.opacity = 0; }
+  $('vNext').addEventListener('click', function () { if (!view) return; view.i = (view.i + 1) % view.list.length; showView(); });
+  $('vClose').addEventListener('click', function () { if (!view) return; view = null; $('viewer').hidden = true; $('dock').style.opacity = ''; $('stick').style.opacity = ''; cineStart([{ to: playerView(), dur: 1.0, hold: 0 }]); });
+
+  // Snowman: roll a ball by walking. It sits in front of the player, grows with distance, leaves a track; place it, then roll the next one onto the stack.
+  const STAGES = [{ name: '몸통', target: 0.55, dist: 4 }, { name: '가슴', target: 0.4, dist: 2.8 }, { name: '머리', target: 0.3, dist: 2 }];
+  const R0 = 0.12; let building = null; // {stage, r, rolled, ball, placed:[], base:{x,z}, lastTrail:{x,z}, group}
+  const trailPool = []; let trailIdx = 0; const trailMat = new THREE.MeshStandardMaterial({ color: 0xc9d4e4, roughness: 1 });
+  for (let i = 0; i < 48; i++) { const t = new THREE.Mesh(new THREE.CircleGeometry(0.3, 10), trailMat); t.rotation.x = -Math.PI / 2; t.position.y = 0.012; t.visible = false; scene.add(t); trailPool.push(t); }
+  function ballAhead() { const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw); const d = 0.75 + building.r * 1.2; return { x: player.x + fx * d, z: player.z + fz * d }; }
+  $('actSnowman').addEventListener('click', function () { const z = curZone(); if (building) return showToast('이미 눈덩이를 굴리는 중이에요'); if (!z.outdoor) return showToast('눈사람은 밖에서 만들 수 있어요'); if (data.snowmen[z.id].length >= SNOWMAN_CAP) return showToast('여기는 눈사람이 가득해요'); cancelSnowman(); startBall(0); showToast('걸어서 눈덩이를 굴려 보세요'); });
+  function startBall(stage) { const z = curZone(); building = building || { placed: [], group: new THREE.Group() }; if (!building.group.parent) z.snowGroup.add(building.group); building.stage = stage; building.r = R0; building.rolled = 0; const b = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), M.white); b.scale.setScalar(R0); building.ball = b; scene.add(b); const p = ballAhead(); b.position.set(z.origin.x + p.x, R0, z.origin.z + p.z); building.lastTrail = { x: p.x, z: p.z }; building.prev = { x: player.x, z: player.z }; renderRoll(); $('rollPanel').hidden = false; }
+  function renderRoll() { const st = STAGES[building.stage]; const k = Math.min(1, building.rolled / st.dist); $('rollTitle').textContent = st.name + ' 굴리기'; $('rollBar').style.width = (k * 100) + '%'; $('rollBar').classList.toggle('full', k >= 1); $('rollSub').textContent = k >= 1 ? (building.stage === 0 ? '충분히 커졌어요. 마음에 드는 자리에 놓으세요' : '충분히 커졌어요. 눈사람 옆으로 가서 올리세요') : '눈덩이를 앞에 두고 걸으면 점점 커져요 · ' + Math.round(k * 100) + '%'; $('actPlace').querySelector('em').nextSibling.textContent = building.stage === 0 ? '여기 놓기' : '올리기'; $('actPlace').disabled = k < 1; $('actPlace').style.opacity = k < 1 ? .5 : 1; $('rollSteps').querySelectorAll('i').forEach(function (el, i) { el.className = i < building.stage ? 'done' : i === building.stage ? 'now' : ''; }); }
+  function updateRolling(dt) { if (!building || !building.ball) return; const z = curZone(); const st = STAGES[building.stage]; const dx = player.x - building.prev.x, dz = player.z - building.prev.z; const moved = Math.hypot(dx, dz); building.prev = { x: player.x, z: player.z };
+    if (moved > 0.0005) { building.rolled += moved; const k = Math.min(1, building.rolled / st.dist); building.r = R0 + (st.target - R0) * Math.sqrt(k); const b = building.ball; const p = ballAhead(); const tx = z.origin.x + p.x, tz = z.origin.z + p.z; const rx = tx - b.position.x, rz = tz - b.position.z; b.position.x = tx; b.position.z = tz; b.position.y = building.r; b.scale.setScalar(building.r);
+      const roll = Math.hypot(rx, rz) / building.r; if (roll > 0) { const axis = new THREE.Vector3(rz, 0, -rx).normalize(); b.rotateOnWorldAxis(axis, roll); }
+      if (Math.hypot(p.x - building.lastTrail.x, p.z - building.lastTrail.z) > building.r * 0.9) { building.lastTrail = { x: p.x, z: p.z }; const t = trailPool[trailIdx++ % trailPool.length]; t.visible = true; t.position.set(tx, 0.012 + (trailIdx % 7) * 0.0005, tz); t.scale.setScalar(Math.max(0.4, building.r * 1.6)); }
+      renderRoll(); } }
+  $('actPlace').addEventListener('click', function () { if (!building || !building.ball) return; const z = curZone(); const st = STAGES[building.stage]; if (building.rolled < st.dist) return showToast('아직 작아요. 조금 더 굴려 주세요'); const b = building.ball;
+    if (building.stage === 0) { const lx = b.position.x - z.origin.x, lz = b.position.z - z.origin.z; if (Math.hypot(lx, lz) < z.tree.r + 1.2) return showToast('트리에서 조금 떨어진 곳에 놓아 주세요'); if (Math.hypot(lx, lz) > z.bound - 0.8) return showToast('조금 더 안쪽에 놓아 주세요'); building.base = { x: lx, z: lz, ry: player.yaw + Math.PI }; }
+    else { const d = Math.hypot(player.x - building.base.x, player.z - building.base.z); if (d > 2.6) return showToast('눈사람 옆으로 가서 올려 주세요'); }
+    scene.remove(b); building.ball = null; building.placed.push(building.stage);
+    const next = building.stage + 1; building.group.parent && building.group.parent.remove(building.group); building.group = buildSnowman(z.snowGroup, building.base.x, building.base.z, building.base.ry, next, data.nick); building.group.userData.pop = 0.001;
+    if (next >= 3) { const base = building.base; const finish = function (rec) { if (!data.snowmen[z.id].some(function (x) { return rec.id && x.id === rec.id; })) data.snowmen[z.id].push(rec); if (!online) store.save('snowmen', data.snowmen); rebuildSnowmen(z); dynColliders = snowmanColliders(); building = null; $('rollPanel').hidden = true; showToast('눈사람 완성! ' + data.nick + '의 눈사람이 여기 서 있어요 ☃'); emit({ type: 'snowman', zone: z.id, item: rec }); };
+      if (online) { sb.rpc('build_snowman', { p_zone: z.id, p_x: base.x, p_z: base.z, p_ry: base.ry, p_nick: data.nick }).then(function (r) { if (r.error) { console.warn(r.error); showToast(/ZONE_FULL/.test(r.error.message) ? '여기는 눈사람이 가득해요' : '눈사람을 세우지 못했어요'); cancelSnowman(); return; } finish(mapSnow(r.data)); }); }
+      else finish({ type: 'snowman', x: base.x, z: base.z, ry: base.ry, name: data.nick, owner: data.me, at: Date.now() }); }
+    else { showToast(STAGES[building.stage].name + '을 올렸어요. 이제 ' + STAGES[next].name + ' 차례'); startBall(next); } });
+  $('actCancel').addEventListener('click', function () { cancelSnowman(); showToast('눈덩이를 두고 왔어요'); });
+  function cancelSnowman() { if (!building) return; if (building.ball) scene.remove(building.ball); if (building.group && building.group.parent) building.group.parent.remove(building.group); building = null; $('rollPanel').hidden = true; }
+
+  // Snowball
+  const balls = []; let throwCd = 0; const throwBtn = $('throwBtn');
+  function throwSnowball() { if (throwCd > 0 || sheetOpen() || !enter.hidden) return; throwCd = 0.9; const b = sphere(0.11, M.white, 0, 0, 0, scene, 8); const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.12).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw); b.position.set(worldX(), 1.3, worldZ()).addScaledVector(dir, 0.45); balls.push({ m: b, v: dir.multiplyScalar(11).add(new THREE.Vector3(0, 2.0, 0)), t: 0 }); if (me) me.userData.throwT = 0.4; emit({ type: 'throw', zone: curZone().id, x: player.x, z: player.z, yaw: player.yaw, pitch: 0.12 }); }
+  throwBtn.addEventListener('click', throwSnowball);
+  function puff(p, big) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, depthWrite: false, opacity: .9 })); s.position.copy(p); s.scale.setScalar(big ? 0.9 : 0.5); scene.add(s); sparks.push({ m: s, t: 2.8, puff: true }); }
+
+  // ---------- Loop ----------
+  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); } addEventListener('resize', resize); resize();
+  const clock = new THREE.Clock(); let bob = 0, lastBroadcast = 0, tAcc = 0; const camQ = new THREE.Quaternion();
+  function frame() {
+    const dt = Math.min(clock.getDelta(), 0.05); tAcc += dt; const z = curZone(); let movedNow = false; const ui = sheetOpen() || !enter.hidden || !!cine || !!view;
+    if (!ui && !traveling) {
+      let fx = 0, fz = 0; if (keys.KeyW || keys.ArrowUp) fz -= 1; if (keys.KeyS || keys.ArrowDown) fz += 1; if (keys.KeyA || keys.ArrowLeft) fx -= 1; if (keys.KeyD || keys.ArrowRight) fx += 1; fx += stickVec.x; fz += stickVec.y;
+      const len = Math.hypot(fx, fz); if (len > 1) { fx /= len; fz /= len; }
+      const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw); const dx = (fx * cos + fz * sin) * player.speed * dt, dz = (-fx * sin + fz * cos) * player.speed * dt;
+      if (dx || dz) { if (!tryMove(player.x + dx, player.z + dz)) { tryMove(player.x + dx, player.z) || tryMove(player.x, player.z + dz); } bob += dt * 9; movedNow = true; }
+    }
+    shake = Math.max(0, shake - dt * 1.6);
+    if (me) { me.position.x = worldX(); me.position.z = worldZ(); me.rotation.y = player.yaw; me.rotation.z = Math.sin(tAcc * 30) * shake * 0.2; animateAvatar(me, movedNow, dt); me.visible = !cine || !!view; }
+    if (cine) cineUpdate(dt); else { const fv = followCam(); camera.position.copy(fv.pos); camera.position.x += Math.sin(tAcc * 40) * shake * 0.08; camera.position.y += Math.sin(tAcc * 33) * shake * 0.05; camera.lookAt(fv.look); }
+    popUpdate(dt); shootingUpdate(dt);
+    // Context
+    const dTree = Math.hypot(player.x, player.z); const dMail = Math.hypot(player.x - z.mailboxPos.x, player.z - z.mailboxPos.z);
+    setContext(ui ? '' : building ? 'rolling' : '');
+    if (building) updateRolling(dt);
+    // Throw cooldown
+    if (throwCd > 0) { throwCd -= dt; throwBtn.disabled = throwCd > 0; }
+    // Portals
+    for (const p of z.portals) { p.pad.material.opacity = 0.5 + Math.sin(tAcc * 3) * 0.25; if (!traveling && !ui && Math.hypot(worldX() - p.x, worldZ() - p.z) < 1.1) travel(p.to); }
+    // Ambient
+    const ud = z.treeObj.group.userData; if (ud.spin) ud.spin.rotation.y += dt * 0.8; if (ud.pulse) { const k = 1.2 + Math.sin(tAcc * 4) * 0.8; ud.pulse.material.emissiveIntensity = k; ud.noseHalo.material.opacity = 0.4 + k * 0.25; }
+    if (ud.halos) { camera.getWorldQuaternion(camQ); ud.halos.forEach(function (h) { for (let i = 0; i < h.count; i++) { h.getMatrixAt(i, dummy.matrix); dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale); dummy.quaternion.copy(camQ); dummy.scale.setScalar(1 + Math.sin(tAcc * 2 + i) * 0.15); dummy.updateMatrix(); h.setMatrixAt(i, dummy.matrix); } h.instanceMatrix.needsUpdate = true; }); }
+    if (z.fire) { z.fire.intensity = 2 + Math.sin(tAcc * 11) * 0.3 + Math.sin(tAcc * 5.3) * 0.25; z.ember.scale.y = 1 + Math.sin(tAcc * 9) * 0.15; }
+    if (snowPts.visible) { const pos = snowGeo.attributes.position.array; for (let i = 0; i < SNOW_N; i++) { pos[i * 3 + 1] -= dt * (0.6 + (i % 5) * 0.15); pos[i * 3] += Math.sin(tAcc + i) * dt * 0.15; if (pos[i * 3 + 1] < 0) { pos[i * 3 + 1] = 14; pos[i * 3] = (Math.random() - .5) * 40; pos[i * 3 + 2] = (Math.random() - .5) * 40; } } snowGeo.attributes.position.needsUpdate = true; snowPts.position.set(z.origin.x, 0, z.origin.z); }
+    // Snowballs
+    for (let i = balls.length - 1; i >= 0; i--) { const b = balls[i]; b.t += dt; b.v.y -= 9.8 * dt; b.m.position.addScaledVector(b.v, dt); let hit = false; if (!b.remote) remote.forEach(function (v) { if (!hit && v.visible && b.m.position.distanceTo(new THREE.Vector3(v.position.x, 1, v.position.z)) < 0.6) { hit = true; v.userData.wobble = 1; puff(b.m.position, true); showToast('명중! ❄'); emit({ type: 'hit', target: v.userData.id, from: data.nick }); } }); const treeD = Math.hypot(b.m.position.x - z.origin.x, b.m.position.z - z.origin.z); if (!hit && (b.m.position.y < 0.08 || treeD < profile(z.tree, Math.max(0, Math.min(1, (b.m.position.y - z.treeObj.trunkH) / z.treeObj.bodyH))) + 0.1 || b.t > 4)) { hit = true; puff(b.m.position, false); } if (hit) { scene.remove(b.m); balls.splice(i, 1); } }
+    remote.forEach(function (v) { const tg = v.userData.target; let mv = false; if (tg) { const ddx = tg.x - v.position.x, ddz = tg.z - v.position.z; mv = Math.hypot(ddx, ddz) > 0.03; v.position.x += ddx * Math.min(1, dt * 8); v.position.z += ddz * Math.min(1, dt * 8); let dy = tg.yaw - v.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); v.rotation.y += dy * Math.min(1, dt * 8); } animateAvatar(v, mv, dt); if (v.userData.wobble > 0) { v.userData.wobble -= dt * 1.5; v.rotation.z = Math.sin(tAcc * 30) * v.userData.wobble * 0.25; } });
+    for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.t += dt; if (s.puff) { s.m.scale.multiplyScalar(1 + dt * 2.5); s.m.material.opacity -= dt * 2.2; if (s.m.material.opacity <= 0) { scene.remove(s.m); sparks.splice(i, 1); } continue; } s.m.position.y += dt * 2.2; s.m.position.x += Math.sin(s.t * 3) * dt * 0.4; s.m.scale.setScalar(Math.max(0.05, 1 - s.t / 4)); if (s.t > 4) { scene.remove(s.m); sparks.splice(i, 1); } }
+    const now = performance.now(); trackMe(now); if (localListeners.length && now - lastBroadcast > 100) { lastBroadcast = now; const s = { zone: player.zone, x: player.x, z: player.z, yaw: player.yaw, name: data.nick }; localListeners.forEach(function (fn) { fn(s); }); }
+    renderer.render(scene, camera); requestAnimationFrame(frame);
+  }
+  if (hot && hot.ready) hot.ready(frame); else frame();
+})();
+</script>
+
+</body>
+</html>
