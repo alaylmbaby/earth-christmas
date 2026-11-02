@@ -12,7 +12,7 @@
 <style>
   /* Layout: full-screen WebGL; HUD pinned to corners; contextual action bar at the bottom; sheets slide up for map / wish / ornament / snowman / mailbox */
   :root {
-    --bg: #f2dde6; --fg: #3b2a3f; --muted: #8a7590;
+    --bg: #d9a9b6; --fg: #3b2a3f; --muted: #8a7590;
     --panel: rgba(255, 250, 249, 0.82); --panel-solid: #fff8f6; --line: rgba(59, 42, 63, 0.14);
     --accent: #f08a7e; --accent-2: #e46f6f; --ok: #6cc29a;
     --font-display: "Gowun Batang", "Noto Serif KR", Georgia, serif;
@@ -30,18 +30,18 @@
   .hud > * { pointer-events: auto; }
   .hud .quiet { pointer-events: none; }
 
-  .brand { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); }
-  .brand h1 { font: 700 18px/1.2 var(--font-display); margin: 0; text-shadow: 0 1px 10px rgba(255,255,255,.7); }
+  .brand { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); left: max(14px, env(safe-area-inset-left, 0px)); }
+  .brand h1 { font: 700 16px/1.2 var(--font-display); margin: 0; text-shadow: 0 1px 10px rgba(255,255,255,.7); }
   .brand span { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
 
-  .fill { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; min-width: 164px; backdrop-filter: blur(8px); }
-  .fill .n { font: 700 15px/1 var(--font-display); font-variant-numeric: tabular-nums; }
-  .fill .n small { font: 400 11px var(--font-ui); color: var(--muted); }
-  .fill .bar { height: 4px; border-radius: 2px; background: var(--line); margin-top: 7px; overflow: hidden; }
+  .fill { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 12px; backdrop-filter: blur(8px); display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .fill .n { font: 700 13px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+  .fill .n small { font: 400 10px var(--font-ui); color: var(--muted); margin-left: 1px; }
+  .fill .bar { width: 44px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; display: inline-block; }
   .fill .bar i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .4s ease; }
-  .fill .who { margin-top: 6px; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; min-width: 150px; }
+  .fill .who { color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
   .fill .who b { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
-  .fill .me { margin-top: 4px; font-size: 11px; color: var(--fg); }
+  .fill .me { display: none; }
 
   .dock { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
   .dock.folded { transform: translate(calc(100% - 28px), -50%); }
@@ -55,8 +55,7 @@
   .dock .tab { width: 28px; height: 56px; border: 1px solid var(--line); border-right: 0; border-radius: 10px 0 0 10px; background: rgba(255, 250, 249, 0.72); backdrop-filter: blur(10px); display: grid; place-items: center; padding: 0; margin-right: -1px; }
   .dock .tab svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 2; transition: transform .3s; }
   .dock.folded .tab svg { transform: rotate(180deg); }
-  .fill .who { flex-wrap: nowrap; }
-  .maplink { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: #ffffff; border-radius: 999px; padding: 3px 9px 3px 7px; font-size: 11px; color: var(--fg); }
+  .maplink { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: #ffffff; border-radius: 999px; padding: 4px 9px 4px 7px; font-size: 11px; color: var(--fg); }
   .maplink svg { width: 13px; height: 13px; stroke: var(--accent); fill: none; stroke-width: 1.8; }
   .stick { position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); bottom: calc(26px + env(safe-area-inset-bottom, 0px)); width: 112px; height: 112px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); display: none; touch-action: none; }
   .stick b { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: var(--accent); opacity: .85; }
@@ -74,7 +73,7 @@
   .actions button[hidden] { display: none; }
   .touch .actions { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); }
 
-  .toast { position: absolute; left: 50%; top: calc(86px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -8px); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 13px; opacity: 0; transition: opacity .3s, transform .3s; max-width: calc(100vw - 32px); text-align: center; }
+  .toast { position: absolute; left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -8px); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 13px; opacity: 0; transition: opacity .3s, transform .3s; max-width: calc(100vw - 32px); text-align: center; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   .fade { position: fixed; inset: 0; background: #f6e3ea; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
@@ -136,10 +135,13 @@
   .mail li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; font-size: 13px; line-height: 1.5; }
   .mail li b { color: var(--accent); font-weight: 400; }
 
-  .enter { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; background: linear-gradient(180deg, #c9b6ea 0%, #f1c3d2 55%, #fbe3d0 100%); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .enter { position: fixed; inset: 0; z-index: 6; display: grid; place-items: center; background: linear-gradient(180deg, #6f5fb3 0%, #c98aa6 55%, #efc1b4 100%); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
   .enter[hidden] { display: none; }
   .enter .card { width: min(360px, 100%); display: grid; gap: 10px; text-align: center; }
-  .enter .eyebrow { font-size: 11px; letter-spacing: .18em; color: var(--muted); }
+  .enter .eyebrow { font-size: 11px; letter-spacing: .18em; color: #f6e8f0; }
+  .enter h1 { color: #ffffff; text-shadow: 0 2px 12px rgba(80,50,100,.35); }
+  .enter p { color: #f6e8f0; }
+  .enter .fine { color: #f6e8f0; }
   .enter h1 { font: 700 30px/1.2 var(--font-display); margin: 0; text-wrap: balance; }
   .enter p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0 0 8px; }
   .enter input { text-align: center; font-size: 17px; }
@@ -181,7 +183,7 @@
 
 <div class="hud" id="hud">
   <div class="brand quiet"><h1 id="zoneName">광장</h1><span id="zoneSub">큰 트리 · 눈 내리는 밤</span></div>
-  <div class="fill"><div class="n"><span id="fillNum">0</span> <small>/ 500</small></div><div class="bar"><i id="fillBar"></i></div><div class="who"><b></b><span id="visitorCount" style="pointer-events:auto">1명 함께 있음</span><button class="maplink" id="mapBtn" aria-label="지도 열기"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</button></div><div class="me" id="meName"></div></div>
+  <div class="fill"><span class="n"><span id="fillNum">0</span><small>/500</small></span><span class="bar"><i id="fillBar"></i></span><span class="who"><b></b><span id="visitorCount" style="pointer-events:auto">1명</span></span><button class="maplink" id="mapBtn" aria-label="지도 열기"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</button><span class="me" id="meName" hidden></span></div>
   <div class="reticle quiet"></div>
   <div class="hint" id="hint">클릭해서 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Space</kbd> 눈싸움 · 드래그로 카메라</div>
   <div class="toast quiet" id="toast"></div>
@@ -202,7 +204,7 @@
     <div class="vrow"><button class="btn ghost" id="vClose">닫기</button><button class="btn primary" id="vNext">다음 ›</button></div>
   </div>
   <div class="cine quiet" id="cine" hidden><span id="cineText"></span></div>
-  <div class="tip quiet" id="tip">화면을 끌면 그 방향으로 걸어가요</div>
+  <div class="tip quiet" id="tip">화면을 끌면 걸어가요 · 두 손가락으로 멀리/가까이</div>
   <div class="dock" id="dock">
     <button class="tab" id="dockTab" aria-label="메뉴 접기"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
     <div class="items">
@@ -292,12 +294,12 @@
 
   // ---------- Zones ----------
   const ZONES = [
-    { id: 'plaza', name: '광장', sub: '큰 트리 · 해질녘 눈밭', desc: '마을 한가운데 가장 큰 트리. 버터색 전구와 리본, 꼭대기의 별.', origin: new THREE.Vector3(0, 0, 0), outdoor: true, sky: [0x9f8cd9, 0xf2b9b6], fog: 0xeec1c4, fogNear: 22, fogFar: 60, bound: 16, spawn: [0, 11], accent: '#f08a7e', mailbox: [5.2, 4.6],
-      tree: { tiers: 6, h: 9.5, r: 3.4, color: 0x9fd9b8, color2: 0x86c8a4, lights: 0xfff0c0, garland: 0xf6d58a, topper: 'star' } },
-    { id: 'workshop', name: '산타 작업장', sub: '장작 난로 · 선물 상자', desc: '통나무 작업장 안의 아담한 트리. 알록달록 전구와 사탕 지팡이.', origin: new THREE.Vector3(70, 0, 0), outdoor: false, sky: [0xf3dcc8, 0xf3dcc8], fog: 0xf3dcc8, fogNear: 10, fogFar: 26, bound: 7.2, spawn: [0, 3.4], accent: '#e2a35c', mailbox: [3.6, 3.2],
-      tree: { tiers: 4, h: 4.6, r: 1.9, color: 0x9fd9b8, color2: 0x86c8a4, lights: 0xffa8a8, lights2: 0xa8dcff, garland: 0xf0907f, topper: 'bell' } },
-    { id: 'rudolph', name: '루돌프네 집 앞', sub: '눈 쌓인 전나무 · 빨간 코', desc: '마구간 앞 눈 덮인 전나무. 가지마다 눈이 얹혔고 꼭대기엔 빨간 코.', origin: new THREE.Vector3(-70, 0, 0), outdoor: true, sky: [0x8f9fdc, 0xf0bccf], fog: 0xe6bfd0, fogNear: 18, fogFar: 54, bound: 13, spawn: [0, 9], accent: '#7fb8d9', mailbox: [4.6, 3.8],
-      tree: { tiers: 5, h: 7, r: 2.6, color: 0x8fcfae, color2: 0x7cbf9c, lights: 0xe6f2ff, snow: true, garland: 0xcfe2ff, topper: 'nose' } }
+    { id: 'plaza', name: '광장', sub: '큰 트리 · 해질녘 눈밭', desc: '마을 한가운데 가장 큰 트리. 버터색 전구와 리본, 꼭대기의 별.', origin: new THREE.Vector3(0, 0, 0), outdoor: true, sky: [0x5e4f9e, 0xd98f9a], fog: 0xcf9aa6, fogNear: 22, fogFar: 60, bound: 16, spawn: [0, 11], accent: '#f08a7e', mailbox: [5.2, 4.6],
+      tree: { tiers: 6, h: 9.5, r: 3.4, color: 0x7fcaa2, color2: 0x68b68c, lights: 0xfff0c0, garland: 0xf6d58a, topper: 'star' } },
+    { id: 'workshop', name: '산타 작업장', sub: '장작 난로 · 선물 상자', desc: '통나무 작업장 안의 아담한 트리. 알록달록 전구와 사탕 지팡이.', origin: new THREE.Vector3(70, 0, 0), outdoor: false, sky: [0xd9b093, 0xd9b093], fog: 0xd9b093, fogNear: 10, fogFar: 26, bound: 7.2, spawn: [0, 3.4], accent: '#e2a35c', mailbox: [3.6, 3.2],
+      tree: { tiers: 4, h: 4.6, r: 1.9, color: 0x7fcaa2, color2: 0x68b68c, lights: 0xffa8a8, lights2: 0xa8dcff, garland: 0xf0907f, topper: 'bell' } },
+    { id: 'rudolph', name: '루돌프네 집 앞', sub: '눈 쌓인 전나무 · 빨간 코', desc: '마구간 앞 눈 덮인 전나무. 가지마다 눈이 얹혔고 꼭대기엔 빨간 코.', origin: new THREE.Vector3(-70, 0, 0), outdoor: true, sky: [0x5566a8, 0xd996b4], fog: 0xcb98b4, fogNear: 18, fogFar: 54, bound: 13, spawn: [0, 9], accent: '#7fb8d9', mailbox: [4.6, 3.8],
+      tree: { tiers: 5, h: 7, r: 2.6, color: 0x7dc3a0, color2: 0x69b28c, lights: 0xe6f2ff, snow: true, garland: 0xcfe2ff, topper: 'nose' } }
   ];
 
   // ---------- Local store (server replaces this later; same record shapes) ----------
@@ -312,11 +314,11 @@
   const canvas = $('scene');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouch, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.6 : 2));
-  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.82; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.78; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xf0c8c8, 22, 60); scene.background = new THREE.Color(0xf0c8c8);
   const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 120);
   // Soft studio light: wide warm key with soft shadows, cool fill, pastel hemisphere
-  const hemi = new THREE.HemisphereLight(0xf2d3e0, 0xb9a6d6, 0.55); scene.add(hemi);
+  const hemi = new THREE.HemisphereLight(0xe8c4d8, 0x8f7cb0, 0.5); scene.add(hemi);
   const key = new THREE.DirectionalLight(0xffe9d6, 0.9); key.castShadow = true; key.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048); key.shadow.radius = 6; key.shadow.bias = -0.0008; key.shadow.camera.left = -16; key.shadow.camera.right = 16; key.shadow.camera.top = 16; key.shadow.camera.bottom = -16; key.shadow.camera.near = 1; key.shadow.camera.far = 60; scene.add(key); scene.add(key.target);
   const fill = new THREE.DirectionalLight(0xb9c8ff, 0.25); fill.position.set(-8, 6, -6); scene.add(fill);
   // Sky dome: vertical gradient painted per zone
@@ -327,7 +329,7 @@
   function clay(color, opts) { opts = opts || {}; return new THREE.MeshPhysicalMaterial({ color: color, roughness: opts.rough != null ? opts.rough : .62, metalness: 0, clearcoat: opts.coat != null ? opts.coat : .25, clearcoatRoughness: .6, emissive: opts.emissive || 0x000000, emissiveIntensity: opts.ei || 1 }); }
 
   const colliders = []; // {x,z,r}
-  const M = { snow: clay(0xf1dde3, { rough: .9, coat: .05 }), wood: clay(0xd6a97c), darkwood: clay(0xa87b5a), stone: clay(0xc9c0d8, { rough: .8 }), red: clay(0xf0907f), white: clay(0xfbf6ee, { rough: .7 }), gold: clay(0xf6d58a, { emissive: 0x8a6a2a, ei: .25, coat: .5 }), glass: clay(0xfff1c8, { emissive: 0xffd9a0, ei: .9 }), carrot: clay(0xf5a86a) };
+  const M = { snow: clay(0xe6cfd8, { rough: .9, coat: .05 }), wood: clay(0xd6a97c), darkwood: clay(0xa87b5a), stone: clay(0xc9c0d8, { rough: .8 }), red: clay(0xf0907f), white: clay(0xfbf6ee, { rough: .7 }), gold: clay(0xf6d58a, { emissive: 0x8a6a2a, ei: .25, coat: .5 }), glass: clay(0xfff1c8, { emissive: 0xffd9a0, ei: .9 }), carrot: clay(0xf5a86a) };
   function box(w, h, d, mat, x, y, z, parent, ry) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); if (ry) m.rotation.y = ry; m.castShadow = true; m.receiveShadow = true; (parent || scene).add(m); return m; }
   function cyl(rt, rb, h, mat, x, y, z, parent, seg) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 10), mat); m.position.set(x, y, z); m.castShadow = true; (parent || scene).add(m); return m; }
   function cone(r, h, mat, x, y, z, parent, seg) { const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, seg || 12), mat); m.position.set(x, y, z); m.castShadow = true; (parent || scene).add(m); return m; }
@@ -533,7 +535,7 @@
   const snowPts = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.12, transparent: true, opacity: .8, sizeAttenuation: true, depthWrite: false })); scene.add(snowPts);
 
   // ---------- Player ----------
-  const player = { zone: 0, x: 0, z: 11, yaw: 0, face: 0, pitch: 0.05, speed: 3.4, radius: 0.35 };
+  const player = { zone: 0, x: 0, z: 11, yaw: 0, face: 0, pitch: 0.05, speed: 3.4, radius: 0.35, zoom: 1 };
   const hot = window.claude && window.claude.hot; if (hot && hot.data && typeof hot.data.x === 'number') Object.assign(player, hot.data);
   if (hot && hot.snapshot) hot.snapshot(function () { return { zone: player.zone, x: player.x, z: player.z, yaw: player.yaw, pitch: player.pitch }; });
   function curZone() { return ZONES[player.zone]; } function worldX() { return curZone().origin.x + player.x; } function worldZ() { return curZone().origin.z + player.z; }
@@ -556,7 +558,7 @@
   // Hidden diagnostics: tap the visitor count 5 times within 2 seconds (or open with ?debug)
   window.xmasDebug = /[?&]debug/.test(location.search); let dbgTaps = [];
   $('visitorCount').addEventListener('click', function () { const now = Date.now(); dbgTaps = dbgTaps.filter(function (t) { return now - t < 2000; }); dbgTaps.push(now); const el = $('debug'); if (!el.hidden) { el.hidden = true; return; } if (dbgTaps.length >= 5) { dbgTaps = []; window.xmasDebug = true; el.hidden = false; el.textContent = LOG.join('\n') || '(기록 없음)'; } });
-  function updateVisitors() { let n = 1; remote.forEach(function (v) { v.visible = v.userData.zone === player.zone; if (v.visible) n++; }); $('visitorCount').textContent = n + '명 함께 있음'; }
+  function updateVisitors() { let n = 1; remote.forEach(function (v) { v.visible = v.userData.zone === player.zone; if (v.visible) n++; }); $('visitorCount').textContent = n + '명'; }
 
   // ---------- Tree + snowmen contents ----------
   const dummy = new THREE.Object3D(); const tmpColor = new THREE.Color();
@@ -636,10 +638,12 @@
   canvas.addEventListener('mousedown', function (e) { dragging = true; lastX = e.clientX; lastY = e.clientY; });
   addEventListener('mousemove', function (e) { if (!dragging) return; look(e.clientX - lastX, e.clientY - lastY); lastX = e.clientX; lastY = e.clientY; });
   addEventListener('mouseup', function () { dragging = false; });
-  let moveId = null, moveStart = null;
-  addEventListener('touchstart', function (e) { if (sheetOpen() || !enter.hidden) return; for (const t of e.changedTouches) { const el = document.elementFromPoint(t.clientX, t.clientY); if (moveId === null && el === canvas) { moveId = t.identifier; moveStart = { x: t.clientX, y: t.clientY }; dragVec = { x: 0, y: 0 }; } } }, { passive: true });
-  addEventListener('touchmove', function (e) { for (const t of e.changedTouches) { if (t.identifier === moveId) { const dx = t.clientX - moveStart.x, dy = t.clientY - moveStart.y; const len = Math.hypot(dx, dy); const R = 70; if (len < 8) { dragVec = { x: 0, y: 0 }; } else { const k = Math.min(1, (len - 8) / R); dragVec = { x: dx / len * k, y: dy / len * k }; } } } if (moveId !== null) e.preventDefault(); }, { passive: false });
-  function endTouch(e) { for (const t of e.changedTouches) { if (t.identifier === moveId) { moveId = null; dragVec = { x: 0, y: 0 }; } } } addEventListener('touchend', endTouch); addEventListener('touchcancel', endTouch);
+  let moveId = null, moveStart = null, pinch = null; const ZOOM_MIN = 0.45, ZOOM_MAX = 2.2;
+  function setZoom(v) { player.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v)); }
+  addEventListener('wheel', function (e) { if (sheetOpen() || !enter.hidden) return; e.preventDefault(); setZoom(player.zoom * (1 + Math.sign(e.deltaY) * 0.08)); }, { passive: false });
+  addEventListener('touchstart', function (e) { if (sheetOpen() || !enter.hidden) return; if (e.touches.length >= 2) { const a = e.touches[0], b = e.touches[1]; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), zoom: player.zoom }; moveId = null; dragVec = { x: 0, y: 0 }; return; } for (const t of e.changedTouches) { const el = document.elementFromPoint(t.clientX, t.clientY); if (moveId === null && el === canvas) { moveId = t.identifier; moveStart = { x: t.clientX, y: t.clientY }; dragVec = { x: 0, y: 0 }; } } }, { passive: true });
+  addEventListener('touchmove', function (e) { if (pinch && e.touches.length >= 2) { const a = e.touches[0], b = e.touches[1]; const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); if (d > 10) setZoom(pinch.zoom * (pinch.d / d)); e.preventDefault(); return; } for (const t of e.changedTouches) { if (t.identifier === moveId) { const dx = t.clientX - moveStart.x, dy = t.clientY - moveStart.y; const len = Math.hypot(dx, dy); const R = 70; if (len < 8) { dragVec = { x: 0, y: 0 }; } else { const k = Math.min(1, (len - 8) / R); dragVec = { x: dx / len * k, y: dy / len * k }; } } } if (moveId !== null) e.preventDefault(); }, { passive: false });
+  function endTouch(e) { if (e.touches.length < 2) pinch = null; for (const t of e.changedTouches) { if (t.identifier === moveId) { moveId = null; dragVec = { x: 0, y: 0 }; } } } addEventListener('touchend', endTouch); addEventListener('touchcancel', endTouch);
   function tryMove(nx, nz) { const z = curZone(); const r = player.radius; const d = Math.hypot(nx, nz); const lim = z.bound - r; if (d > lim) { nx *= lim / d; nz *= lim / d; } const wx = z.origin.x + nx, wz = z.origin.z + nz; for (const c of colliders) { if (Math.hypot(wx - c.x, wz - c.z) < c.r + r) return false; } for (const c of dynColliders) { if (Math.hypot(wx - c.x, wz - c.z) < c.r + r) return false; } player.x = nx; player.z = nz; return true; }
 
   // ---------- Sheets / toast ----------
@@ -718,7 +722,9 @@
   function wideView(z, idx) { const w = slotWorld(z, idx); const h = z.treeObj.h; return { pos: z.origin.clone().addScaledVector(w.n, h * 1.15 + z.tree.r).add(new THREE.Vector3(0, h * 0.5, 0)), look: z.origin.clone().add(new THREE.Vector3(0, h * 0.42, 0)) }; }
   function playerView() { return followCam(); }
   // Third-person follow camera: behind and above the avatar; drag changes the elevation; clamped inside the zone
-  function followCam() { const z = curZone(); const elev = Math.max(0.12, Math.min(1.1, 0.3 + player.pitch)); const dist = z.outdoor ? 4.4 : 2.6; const back = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw)); const pos = new THREE.Vector3(worldX(), 0, worldZ()).addScaledVector(back, dist * Math.cos(elev)).add(new THREE.Vector3(0, 1.0 + dist * Math.sin(elev), 0)); const lim = z.bound - 0.4; const lx = pos.x - z.origin.x, lz = pos.z - z.origin.z; const d = Math.hypot(lx, lz); if (d > lim) { pos.x = z.origin.x + lx * lim / d; pos.z = z.origin.z + lz * lim / d; } if (!z.outdoor) pos.y = Math.min(pos.y, 3.6); return { pos: pos, look: new THREE.Vector3(worldX(), 1.0, worldZ()) }; }
+  // zoom 1 = default distance; pinch or wheel scales it between 0.45 (close) and 2.2 (far). The look point rises with distance so the avatar sits in the lower third and the tree stays in frame.
+  function camDist() { const z = curZone(); return (z.outdoor ? 7.5 : 3.6) * player.zoom; }
+  function followCam() { const z = curZone(); const dist = camDist(); const elev = Math.max(0.14, Math.min(1.05, 0.36 + player.pitch)); const back = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw)); const pos = new THREE.Vector3(worldX(), 0, worldZ()).addScaledVector(back, dist * Math.cos(elev)).add(new THREE.Vector3(0, 1.0 + dist * Math.sin(elev), 0)); const lim = z.bound - 0.4; const lx = pos.x - z.origin.x, lz = pos.z - z.origin.z; const d = Math.hypot(lx, lz); if (d > lim) { pos.x = z.origin.x + lx * lim / d; pos.z = z.origin.z + lz * lim / d; } if (!z.outdoor) pos.y = Math.min(pos.y, 3.8); return { pos: pos, look: new THREE.Vector3(worldX(), 1.0 + dist * 0.22, worldZ()) }; }
   function cineStart(steps, onDone) { const cur = cineCurrent(); cine = { steps: steps, i: 0, t: 0, from: cur, onDone: onDone }; $('hud').classList.add('cinema'); if (document.pointerLockElement) document.exitPointerLock(); setCineText(steps[0].text); }
   function cineCurrent() { if (cine) return { pos: camPos.clone(), look: camLook.clone() }; return playerView(); }
   function setCineText(t) { const el = $('cine'); if (t) { el.hidden = false; $('cineText').textContent = t; } else el.hidden = true; }
@@ -744,7 +750,7 @@
   const R0 = 0.12; let building = null; // {stage, r, rolled, ball, placed:[], base:{x,z}, lastTrail:{x,z}, group}
   const trailPool = []; let trailIdx = 0; const trailMat = new THREE.MeshStandardMaterial({ color: 0xc9d4e4, roughness: 1 });
   for (let i = 0; i < 48; i++) { const t = new THREE.Mesh(new THREE.CircleGeometry(0.3, 10), trailMat); t.rotation.x = -Math.PI / 2; t.position.y = 0.012; t.visible = false; scene.add(t); trailPool.push(t); }
-  function ballAhead() { const fx = -Math.sin(player.face), fz = -Math.cos(player.face); const d = 0.75 + building.r * 1.2; return { x: player.x + fx * d, z: player.z + fz * d }; }
+  function ballAhead() { const fx = -Math.sin(player.face), fz = -Math.cos(player.face); const d = 0.9 + building.r * 1.2; return { x: player.x + fx * d, z: player.z + fz * d }; }
   $('actSnowman').addEventListener('click', function () { const z = curZone(); if (building) return showToast('이미 눈덩이를 굴리는 중이에요'); if (!z.outdoor) return showToast('눈사람은 밖에서 만들 수 있어요'); if (data.snowmen[z.id].length >= SNOWMAN_CAP) return showToast('여기는 눈사람이 가득해요'); cancelSnowman(); startBall(0); showToast('걸어서 눈덩이를 굴려 보세요'); });
   function startBall(stage) { const z = curZone(); building = building || { placed: [], group: new THREE.Group() }; if (!building.group.parent) z.snowGroup.add(building.group); building.stage = stage; building.r = R0; building.rolled = 0; const b = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), M.white); b.scale.setScalar(R0); building.ball = b; scene.add(b); const p = ballAhead(); b.position.set(z.origin.x + p.x, R0, z.origin.z + p.z); building.lastTrail = { x: p.x, z: p.z }; building.prev = { x: player.x, z: player.z }; renderRoll(); $('rollPanel').hidden = false; $('hud').classList.add('rolling'); }
   function renderRoll() { const st = STAGES[building.stage]; const k = Math.min(1, building.rolled / st.dist); $('rollTitle').textContent = st.name + ' 굴리기'; $('rollBar').style.width = (k * 100) + '%'; $('rollBar').classList.toggle('full', k >= 1); $('rollSub').textContent = k >= 1 ? (building.stage === 0 ? '충분히 커졌어요. 마음에 드는 자리에 놓으세요' : '충분히 커졌어요. 눈사람 옆으로 가서 올리세요') : '눈덩이를 앞에 두고 걸으면 점점 커져요 · ' + Math.round(k * 100) + '%'; $('actPlace').querySelector('em').nextSibling.textContent = building.stage === 0 ? '여기 놓기' : '올리기'; $('actPlace').disabled = k < 1; $('actPlace').style.opacity = k < 1 ? .5 : 1; $('rollSteps').querySelectorAll('i').forEach(function (el, i) { el.className = i < building.stage ? 'done' : i === building.stage ? 'now' : ''; }); }
