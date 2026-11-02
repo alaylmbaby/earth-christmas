@@ -159,6 +159,7 @@
   .cine[hidden] { display: none; }
   .hud.cinema .dock, .hud.cinema .stick, .hud.cinema .actions, .hud.cinema .fill, .hud.cinema .hint { opacity: 0; pointer-events: none; transition: opacity .3s; }
   .hud .dock, .hud .stick, .hud .fill { transition: opacity .3s; }
+  .debug { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); top: calc(110px + env(safe-area-inset-top, 0px)); max-height: 45vh; overflow: auto; background: rgba(0,0,0,.75); color: #9fe39f; font: 10px/1.4 ui-monospace, Menlo, monospace; padding: 8px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; margin: 0; z-index: 4; }
   .reticle { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: var(--fg); opacity: .4; }
   .touch .reticle { display: none; }
   @media (prefers-reduced-motion: reduce) { .sheet, .actions, .toast, .fade, .fill .bar i { transition: none; } }
@@ -180,10 +181,11 @@
 
 <div class="hud" id="hud">
   <div class="brand quiet"><h1 id="zoneName">광장</h1><span id="zoneSub">큰 트리 · 눈 내리는 밤</span></div>
-  <div class="fill"><div class="n"><span id="fillNum">0</span> <small>/ 500</small></div><div class="bar"><i id="fillBar"></i></div><div class="who"><b></b><span id="visitorCount">1명 함께 있음</span><button class="maplink" id="mapBtn" aria-label="지도 열기"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</button></div><div class="me" id="meName"></div></div>
+  <div class="fill"><div class="n"><span id="fillNum">0</span> <small>/ 500</small></div><div class="bar"><i id="fillBar"></i></div><div class="who"><b></b><span id="visitorCount" style="pointer-events:auto">1명 함께 있음</span><button class="maplink" id="mapBtn" aria-label="지도 열기"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</button></div><div class="me" id="meName"></div></div>
   <div class="reticle quiet"></div>
   <div class="hint" id="hint">클릭해서 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Space</kbd> 눈싸움 · 드래그로 카메라</div>
   <div class="toast quiet" id="toast"></div>
+  <pre class="debug" id="debug" hidden></pre>
   <div class="actions" id="actions">
     <button id="actPlace"><em>⬇</em>여기 놓기</button>
     <button id="actCancel"><em>✕</em>그만두기</button>
@@ -267,7 +269,10 @@
 (function () {
   'use strict';
   const $ = function (id) { return document.getElementById(id); };
-  addEventListener('error', function (e) { const h = $('hint'); h.style.display = 'block'; h.style.opacity = '1'; h.textContent = '오류: ' + (e.message || e.error); });
+  const LOG = []; function logLine(t) { LOG.push(new Date().toTimeString().slice(0, 8) + ' ' + t); if (LOG.length > 40) LOG.shift(); const el = document.getElementById('debug'); if (el && !el.hidden) el.textContent = LOG.join('\n'); }
+  window.xmasLog = logLine;
+  addEventListener('error', function (e) { const msg = (e.error && e.error.stack) ? e.error.stack.split('\n').slice(0, 3).join(' | ') : (e.message || String(e.error)) + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : ''); logLine('ERROR ' + msg); const h = $('hint'); h.style.display = 'block'; h.style.opacity = '1'; h.textContent = '오류: ' + msg; });
+  addEventListener('unhandledrejection', function (e) { const r = e.reason; logLine('REJECT ' + (r && (r.message || r.code) ? (r.message || '') + ' ' + (r.code || '') : String(r))); });
   if (!window.THREE) { $('hint').textContent = '3D 라이브러리를 불러오지 못했어요. 새로고침해 주세요.'; return; }
 
   const CAP = 500, SNOWMAN_CAP = 80;
@@ -531,6 +536,7 @@
     onEvent: function (fn) { eventListeners.push(fn); }
   };
   const eventListeners = []; function emit(ev) { eventListeners.forEach(function (fn) { fn(ev); }); }
+  $('visitorCount').addEventListener('click', function () { const el = $('debug'); el.hidden = !el.hidden; if (!el.hidden) el.textContent = LOG.join('\n') || '(기록 없음)'; });
   function updateVisitors() { let n = 1; remote.forEach(function (v) { v.visible = v.userData.zone === player.zone; if (v.visible) n++; }); $('visitorCount').textContent = n + '명 함께 있음'; }
 
   // ---------- Tree + snowmen contents ----------
@@ -566,8 +572,8 @@
   }
   async function goOnline() {
     if (!sb || !uid) return;
-    try { await loadAll(); online = true; watchDb(); await joinZone(); showToast('연결됐어요. 다른 사람의 장식과 발자국이 보여요'); }
-    catch (e) { console.warn('online', e); online = false; showToast('서버에 닿지 못해 내 기기 저장으로 돌아가요'); }
+    try { await loadAll(); online = true; logLine('db ok uid=' + uid.slice(0, 8)); watchDb(); await joinZone(); showToast('연결됐어요. 다른 사람의 장식과 발자국이 보여요'); }
+    catch (e) { console.warn('online', e); logLine('online FAIL ' + (e.message || e)); online = false; showToast('서버에 닿지 못해 내 기기 저장으로 돌아가요: ' + (e.message || '')); }
   }
   async function loadAll() {
     const o = await sb.from('ornaments').select('*').order('id'); const sn = await sb.from('snowmen').select('*').order('id');
@@ -579,19 +585,20 @@
   }
   function addOrnRow(r) { const list = data.ornaments[r.zone]; if (!list || list.some(function (x) { return x.id === r.id; })) return; list.push(mapOrn(r)); list.sort(byId); const z = ZONES.find(function (z) { return z.id === r.zone; }); rebuildTree(z); updateFill(); }
   function addSnowRow(r) { const list = data.snowmen[r.zone]; if (!list || list.some(function (x) { return x.id === r.id; })) return; list.push(mapSnow(r)); const z = ZONES.find(function (z) { return z.id === r.zone; }); rebuildSnowmen(z); dynColliders = snowmanColliders(); }
-  function watchDb() { sb.channel('db-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ornaments' }, function (p) { addOrnRow(p.new); }).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'snowmen' }, function (p) { addSnowRow(p.new); }).subscribe(); }
+  function watchDb() { sb.channel('db-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ornaments' }, function (p) { try { addOrnRow(p.new); } catch (e) { logLine('addOrn ' + e.message); } }).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'snowmen' }, function (p) { try { addSnowRow(p.new); } catch (e) { logLine('addSnow ' + e.message); } }).subscribe(function (st, err) { logLine('db-changes ' + st + (err ? ' ' + (err.message || err) : '')); }); }
+  let privateRealtime = false;
   async function joinZone() {
     if (!online) return; if (zoneCh) { try { await sb.removeChannel(zoneCh); } catch (e) {} zoneCh = null; }
     Array.from(remote.keys()).forEach(function (id) { window.xmas.removeVisitor(id); });
-    const z = curZone(); const ch = sb.channel('zone:' + z.id, { config: { presence: { key: uid }, broadcast: { self: false } } });
-    ch.on('presence', { event: 'sync' }, function () { const st = ch.presenceState(); const seen = {}; Object.keys(st).forEach(function (k) { if (k === uid) return; const arr = st[k]; const p = arr && arr[arr.length - 1]; if (!p || typeof p.x !== 'number') return; seen[k] = true; window.xmas.upsertVisitor(k, { zone: player.zone, x: p.x, z: p.z, yaw: p.yaw, name: p.nick }); }); Array.from(remote.keys()).forEach(function (id) { if (!seen[id]) window.xmas.removeVisitor(id); }); })
-      .on('broadcast', { event: 'throw' }, function (m) { if (m.payload && m.payload.from !== uid) spawnRemoteBall(m.payload); })
+    const z = curZone(); const ch = sb.channel('zone:' + z.id, { config: { presence: { key: uid }, broadcast: { self: false }, private: privateRealtime } });
+    ch.on('presence', { event: 'sync' }, function () { try { const st = ch.presenceState(); const seen = {}; Object.keys(st).forEach(function (k) { if (k === uid) return; const arr = st[k]; const p = arr && arr[arr.length - 1]; if (!p || typeof p.x !== 'number') return; seen[k] = true; window.xmas.upsertVisitor(k, { zone: player.zone, x: p.x, z: p.z, yaw: p.yaw, name: p.nick }); }); Array.from(remote.keys()).forEach(function (id) { if (!seen[id]) window.xmas.removeVisitor(id); }); logLine('presence ' + Object.keys(st).length + '명'); } catch (e) { logLine('presence ERR ' + e.message); } })
+      .on('broadcast', { event: 'throw' }, function (m) { try { if (m.payload && m.payload.from !== uid) spawnRemoteBall(m.payload); } catch (e) { logLine('throw ERR ' + e.message); } })
       .on('broadcast', { event: 'hit' }, function (m) { if (m.payload && m.payload.target === uid) window.xmas.hitMe(m.payload.from); })
-      .subscribe(async function (status) { if (status === 'SUBSCRIBED') { try { await ch.track({ x: player.x, z: player.z, yaw: player.yaw, nick: data.nick }); } catch (e) {} } });
+      .subscribe(async function (status, err) { logLine('zone:' + z.id + ' ' + status + (err ? ' ' + (err.message || err) : '')); if (status === 'SUBSCRIBED') { try { const r = await ch.track({ x: player.x, z: player.z, yaw: player.face, nick: data.nick }); logLine('track ' + r); } catch (e) { logLine('track ERR ' + e.message); } } else if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !privateRealtime && zoneCh === ch) { privateRealtime = true; logLine('retry as private channel'); joinZone(); } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') showToast('실시간 연결 실패(' + status + '). 인원 표시를 눌러 기록을 확인하세요'); });
     zoneCh = ch;
   }
   let lastTrack = 0, lastTracked = { x: 1e9, z: 1e9, yaw: 0 };
-  function trackMe(now) { if (!zoneCh || now - lastTrack < 200) return; if (Math.abs(player.x - lastTracked.x) < 0.02 && Math.abs(player.z - lastTracked.z) < 0.02 && Math.abs(player.yaw - lastTracked.yaw) < 0.03) return; lastTrack = now; lastTracked = { x: player.x, z: player.z, yaw: player.yaw }; zoneCh.track({ x: player.x, z: player.z, yaw: player.yaw, nick: data.nick }).catch(function () {}); }
+  function trackMe(now) { if (!zoneCh || now - lastTrack < 200) return; if (Math.abs(player.x - lastTracked.x) < 0.02 && Math.abs(player.z - lastTracked.z) < 0.02 && Math.abs(player.yaw - lastTracked.yaw) < 0.03) return; lastTrack = now; lastTracked = { x: player.x, z: player.z, yaw: player.yaw }; try { const pr = zoneCh.track({ x: player.x, z: player.z, yaw: player.face, nick: data.nick }); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {} }
   function spawnRemoteBall(p) { const z = curZone(); const b = sphere(0.11, M.white, 0, 0, 0, scene, 8); const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(1, 0, 0), p.pitch || 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), p.yaw || 0); b.position.set(z.origin.x + p.x, 1.3, z.origin.z + p.z).addScaledVector(dir, 0.45); balls.push({ m: b, v: dir.multiplyScalar(11).add(new THREE.Vector3(0, 2.0, 0)), t: 0, remote: true }); const v = remote.get(p.from); if (v) v.userData.throwT = 0.4; }
   window.xmas.onEvent(function (ev) { if (!zoneCh) return; if (ev.type === 'throw') zoneCh.send({ type: 'broadcast', event: 'throw', payload: { from: uid, x: ev.x, z: ev.z, yaw: ev.yaw, pitch: ev.pitch } }); if (ev.type === 'hit') zoneCh.send({ type: 'broadcast', event: 'hit', payload: { target: ev.target, from: ev.from } }); if (ev.type === 'wish' && online) sb.from('wishes').insert({ zone: ev.zone, owner: uid, text: ev.text || '' }).then(function () {}, function () {}); });
   bootAuth();
