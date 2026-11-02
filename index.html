@@ -570,8 +570,9 @@
   let tipGone = false, idleT = 0;
   let me = null; function setNick(n) { data.nick = n; store.save('nick', n); $('meName').textContent = '나: ' + n; if (me) scene.remove(me); me = buildAvatar(uid || data.me, n, scene); me.position.set(worldX(), 0, worldZ()); me.rotation.y = player.face; }
   async function bootAuth() {
-    if (!sb) { if (data.nick) { setNick(data.nick); enter.hidden = true; } return; }
-    try { const r = await sb.auth.getSession(); const sess = r.data && r.data.session; if (sess) { uid = sess.user.id; const p = await sb.from('profiles').select('nick').eq('id', uid).maybeSingle(); if (p.data && p.data.nick) { setNick(p.data.nick); enter.hidden = true; await goOnline(); return; } } } catch (e) { console.warn('auth', e); }
+    logLine('lib three=' + !!window.THREE + ' supabase=' + !!window.supabase + ' client=' + !!sb);
+    if (!sb) { logLine('supabase 라이브러리 없음 → 혼자 놀기 모드'); if (data.nick) { setNick(data.nick); enter.hidden = true; } return; }
+    try { const r = await sb.auth.getSession(); const sess = r.data && r.data.session; logLine('session ' + (sess ? 'yes' : 'none')); if (sess) { uid = sess.user.id; const p = await sb.from('profiles').select('nick').eq('id', uid).maybeSingle(); if (p.data && p.data.nick) { setNick(p.data.nick); enter.hidden = true; await goOnline(); return; } } } catch (e) { console.warn('auth', e); }
     nickInput.value = data.nick || '';
   }
   async function goOnline() {
@@ -607,7 +608,7 @@
   window.xmas.onEvent(function (ev) { if (!zoneCh) return; if (ev.type === 'throw') zoneCh.send({ type: 'broadcast', event: 'throw', payload: { from: uid, x: ev.x, z: ev.z, yaw: ev.yaw, pitch: ev.pitch } }); if (ev.type === 'hit') zoneCh.send({ type: 'broadcast', event: 'hit', payload: { target: ev.target, from: ev.from } }); if (ev.type === 'wish' && online) sb.from('wishes').insert({ zone: ev.zone, owner: uid, text: ev.text || '' }).then(function () {}, function () {}); });
   bootAuth();
   $('enterBtn').addEventListener('click', async function () { const n = nickInput.value.trim(); if (n.length < 2) { nickInput.focus(); return showToast('닉네임을 2자 이상 적어 주세요'); } const btn = $('enterBtn'); btn.disabled = true; btn.textContent = '입장 중…';
-    if (sb) { try { if (!uid) { const r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; uid = r.data.user.id; } const up = await sb.from('profiles').upsert({ id: uid, nick: n }); if (up.error) throw up.error; } catch (e) { console.warn('signin', e); uid = null; showToast('서버에 연결하지 못해 혼자 놀기 모드로 들어가요'); } }
+    if (sb) { try { if (!uid) { const r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; uid = r.data.user.id; logLine('signed in anon ' + uid.slice(0, 8)); } const up = await sb.from('profiles').upsert({ id: uid, nick: n }); if (up.error) throw up.error; logLine('profile ok'); } catch (e) { console.warn('signin', e); logLine('signin FAIL ' + (e.message || e)); uid = null; showToast('서버 로그인 실패: ' + (e.message || e)); } }
     setNick(n); enter.hidden = true; btn.disabled = false; btn.textContent = '들어가기'; showToast(n + '님, 광장에 오신 걸 환영해요'); await goOnline(); });
   nickInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') $('enterBtn').click(); });
 
@@ -632,7 +633,7 @@
   function openSheet(id) { closeSheets(); const s = $(id); s.classList.add('open'); s.setAttribute('aria-hidden', 'false'); if (document.pointerLockElement) document.exitPointerLock(); keys.KeyW = keys.KeyA = keys.KeyS = keys.KeyD = false; }
   function closeSheets() { sheets.forEach(function (s) { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); }); }
   document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', closeSheets); });
-  let toastT; function showToast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, 2400); }
+  let toastT; function showToast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, /실패|오류|못해/.test(msg) ? 6000 : 2400); }
 
   // Map
   $('mapBtn').addEventListener('click', function () { renderTreeList(); openSheet('sheetMap'); });
