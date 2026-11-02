@@ -181,7 +181,7 @@
   <div class="brand quiet"><h1 id="zoneName">광장</h1><span id="zoneSub">큰 트리 · 눈 내리는 밤</span></div>
   <div class="fill"><div class="n"><span id="fillNum">0</span> <small>/ 500</small></div><div class="bar"><i id="fillBar"></i></div><div class="who"><b></b><span id="visitorCount">1명 함께 있음</span><button class="maplink" id="mapBtn" aria-label="지도 열기"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</button></div><div class="me" id="meName"></div></div>
   <div class="reticle quiet"></div>
-  <div class="hint" id="hint">클릭해서 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Space</kbd> 눈싸움 · 바닥 클릭으로 걷기 · 드래그로 카메라</div>
+  <div class="hint" id="hint">클릭해서 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Space</kbd> 눈싸움 · 드래그로 카메라</div>
   <div class="toast quiet" id="toast"></div>
   <div class="actions" id="actions">
     <button id="actPlace"><em>⬇</em>여기 놓기</button>
@@ -199,7 +199,7 @@
     <div class="vrow"><button class="btn ghost" id="vClose">닫기</button><button class="btn primary" id="vNext">다음 ›</button></div>
   </div>
   <div class="cine quiet" id="cine" hidden><span id="cineText"></span></div>
-  <div class="tip quiet" id="tip">바닥을 톡 누르면 걸어가요 · 드래그하면 둘러봐요</div>
+  <div class="tip quiet" id="tip">화면을 끌면 그 방향으로 걸어가요</div>
   <div class="dock" id="dock">
     <button class="tab" id="dockTab" aria-label="메뉴 접기"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
     <div class="items">
@@ -320,42 +320,49 @@
   // ---------- Avatars ----------
   // Everyone shares one body; a seed (account id) picks the coat color and two or three festive accessories, so a person looks the same on every device.
   function hashSeed(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return function () { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; }
-  const COATS = [0xc8463a, 0x2b6f9e, 0x3f9d5a, 0x6a56a8, 0xe08a3a, 0x7a5235, 0xb43a6e, 0x2f7f7f];
+  // Avatar: one seamless pearly figure in the spirit of a vinyl toy. Big round head, tiny body, arms and legs that blend into it, two dark eyes and a small mouth.
+  const BODIES = [0xf3ece3, 0xf6d9de, 0xd8e7f6, 0xdff0dd, 0xf8e7cb, 0xe8def6, 0xfbefcc, 0xf6dfd3];
   const SCARVES = [0xc8463a, 0xe4b25a, 0x3f9d5a, 0xf6f0e0, 0x2b6f9e];
-  const HEAD_Y = 1.36, HEAD_R = 0.31, NECK_Y = 1.04;
+  const HEAD_Y = 1.28, HEAD_R = 0.42, NECK_Y = 0.9;
+  function capsule(r, h, mat, seg) { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, seg || 12), mat); g.add(c); const a = new THREE.Mesh(new THREE.SphereGeometry(r, seg || 12, 10), mat); a.position.y = h / 2; g.add(a); const b = new THREE.Mesh(new THREE.SphereGeometry(r, seg || 12, 10), mat); b.position.y = -h / 2; g.add(b); return g; }
   const ACC = {
-    santa: { name: '산타 모자', build: function (g) { const hat = cone(0.3, 0.5, M.red, 0.04, HEAD_Y + 0.42, 0, g, 14); hat.rotation.z = 0.28; const brim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.06, 8, 18), M.white); brim.rotation.x = Math.PI / 2; brim.position.y = HEAD_Y + 0.24; g.add(brim); sphere(0.075, M.white, 0.25, HEAD_Y + 0.6, 0, g, 8); } },
-    antlers: { name: '루돌프 머리띠', build: function (g) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.31, 0.022, 6, 18, Math.PI), M.darkwood); band.position.y = HEAD_Y + 0.1; band.rotation.z = Math.PI; g.add(band); [-1, 1].forEach(function (sd) { const a = cyl(0.018, 0.028, 0.34, M.darkwood, sd * 0.18, HEAD_Y + 0.44, 0, g, 6); a.rotation.z = -sd * 0.3; const b = cyl(0.014, 0.02, 0.18, M.darkwood, sd * 0.27, HEAD_Y + 0.52, 0, g, 6); b.rotation.z = -sd * 1.15; const c = cyl(0.012, 0.016, 0.14, M.darkwood, sd * 0.12, HEAD_Y + 0.58, 0.02, g, 6); c.rotation.z = sd * 0.6; }); sphere(0.055, new THREE.MeshStandardMaterial({ color: 0xff3b2f, emissive: 0xff2a1a, emissiveIntensity: 1.2 }), 0, HEAD_Y - 0.04, HEAD_R + 0.01, g, 8); } },
-    earmuffs: { name: '귀마개', build: function (g) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.016, 6, 18, Math.PI), M.red); band.position.y = HEAD_Y + 0.02; band.rotation.z = Math.PI; g.add(band); sphere(0.09, M.white, -0.31, HEAD_Y - 0.02, 0, g, 10); sphere(0.09, M.white, 0.31, HEAD_Y - 0.02, 0, g, 10); } },
-    wreath: { name: '미슬토 리스', build: function (g) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.055, 8, 20), new THREE.MeshStandardMaterial({ color: 0x2f6f3e, roughness: 1 })); w.rotation.x = Math.PI / 2; w.position.y = NECK_Y; g.add(w); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; sphere(0.026, M.red, Math.cos(a) * 0.28, NECK_Y + 0.02, Math.sin(a) * 0.28, g, 6); } } },
-    scarf: { name: '목도리', build: function (g, r) { const col = SCARVES[Math.floor(r() * SCARVES.length)]; const mat = new THREE.MeshStandardMaterial({ color: col, roughness: .9 }); const w = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.065, 8, 18), mat); w.rotation.x = Math.PI / 2; w.position.y = NECK_Y; g.add(w); const tail = box(0.11, 0.36, 0.05, mat, 0.15, NECK_Y - 0.2, 0.3, g); tail.rotation.z = 0.12; box(0.11, 0.035, 0.055, M.white, 0.17, NECK_Y - 0.36, 0.3, g); } },
-    bell: { name: '종 목걸이', build: function (g) { cyl(0.005, 0.005, 0.12, M.gold, 0, NECK_Y - 0.06, 0.3, g, 5); const b = cone(0.05, 0.08, M.gold, 0, NECK_Y - 0.15, 0.31, g, 12); b.rotation.x = Math.PI; sphere(0.017, M.gold, 0, NECK_Y - 0.2, 0.31, g, 6); } },
-    glasses: { name: '지팡이 안경', build: function (g) { [-1, 1].forEach(function (sd) { const l = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.014, 6, 16), sd < 0 ? M.red : M.white); l.position.set(sd * 0.12, HEAD_Y + 0.03, HEAD_R - 0.02); g.add(l); const st = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.015, 6, 16, Math.PI), sd < 0 ? M.white : M.red); st.position.set(sd * 0.12, HEAD_Y + 0.03, HEAD_R - 0.02); g.add(st); }); const hook = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.012, 6, 10, Math.PI), M.red); hook.position.set(0, HEAD_Y + 0.05, HEAD_R - 0.02); g.add(hook); } },
-    earrings: { name: '눈사람 귀걸이', build: function (g) { [-1, 1].forEach(function (sd) { sphere(0.034, M.white, sd * 0.31, HEAD_Y - 0.14, 0, g, 8); sphere(0.025, M.white, sd * 0.31, HEAD_Y - 0.085, 0, g, 8); sphere(0.007, M.carrot, sd * 0.31, HEAD_Y - 0.085, 0.025, g, 4); }); } },
-    stocking: { name: '크리스마스 양말', build: function (g) { box(0.08, 0.18, 0.07, M.red, 0.3, 0.6, 0.1, g); box(0.08, 0.045, 0.07, M.white, 0.3, 0.7, 0.1, g); box(0.12, 0.06, 0.07, M.red, 0.33, 0.5, 0.1, g); } },
-    snowflake: { name: '눈꽃 핀', build: function (g) { for (let i = 0; i < 3; i++) { const bar = box(0.12, 0.014, 0.014, M.white, -0.18, HEAD_Y + 0.24, 0.17, g); bar.rotation.z = i * Math.PI / 3; bar.rotation.y = 0.5; } } }
+    santa: { name: '산타 모자', build: function (g) { const hat = cone(0.36, 0.6, M.red, 0.05, HEAD_Y + 0.62, 0, g, 16); hat.rotation.z = 0.3; const brim = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.07, 8, 20), M.white); brim.rotation.x = Math.PI / 2; brim.position.y = HEAD_Y + 0.33; g.add(brim); sphere(0.085, M.white, 0.3, HEAD_Y + 0.85, 0, g, 10); } },
+    antlers: { name: '루돌프 머리띠', build: function (g) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.022, 6, 20, Math.PI), M.darkwood); band.position.y = HEAD_Y + 0.08; band.rotation.z = Math.PI; g.add(band); [-1, 1].forEach(function (sd) { const a = cyl(0.02, 0.03, 0.38, M.darkwood, sd * 0.22, HEAD_Y + 0.58, 0, g, 6); a.rotation.z = -sd * 0.3; const b = cyl(0.015, 0.022, 0.2, M.darkwood, sd * 0.33, HEAD_Y + 0.66, 0, g, 6); b.rotation.z = -sd * 1.15; const c = cyl(0.013, 0.018, 0.16, M.darkwood, sd * 0.15, HEAD_Y + 0.74, 0.02, g, 6); c.rotation.z = sd * 0.6; }); sphere(0.06, new THREE.MeshStandardMaterial({ color: 0xff3b2f, emissive: 0xff2a1a, emissiveIntensity: 1.2 }), 0, HEAD_Y - 0.1, HEAD_R - 0.01, g, 10); } },
+    earmuffs: { name: '귀마개', build: function (g) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.018, 6, 20, Math.PI), M.red); band.position.y = HEAD_Y + 0.02; band.rotation.z = Math.PI; g.add(band); sphere(0.12, M.white, -0.43, HEAD_Y - 0.02, 0, g, 12); sphere(0.12, M.white, 0.43, HEAD_Y - 0.02, 0, g, 12); } },
+    wreath: { name: '미슬토 리스', build: function (g) { const w = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.06, 8, 22), new THREE.MeshStandardMaterial({ color: 0x2f6f3e, roughness: 1 })); w.rotation.x = Math.PI / 2; w.position.y = NECK_Y; g.add(w); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; sphere(0.028, M.red, Math.cos(a) * 0.31, NECK_Y + 0.02, Math.sin(a) * 0.31, g, 6); } } },
+    scarf: { name: '목도리', build: function (g, r) { const col = SCARVES[Math.floor(r() * SCARVES.length)]; const mat = new THREE.MeshStandardMaterial({ color: col, roughness: .9 }); const w = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.075, 8, 20), mat); w.rotation.x = Math.PI / 2; w.position.y = NECK_Y; g.add(w); const tail = box(0.12, 0.34, 0.05, mat, 0.16, NECK_Y - 0.2, 0.27, g); tail.rotation.z = 0.12; box(0.12, 0.035, 0.055, M.white, 0.18, NECK_Y - 0.36, 0.27, g); } },
+    bell: { name: '종 목걸이', build: function (g) { cyl(0.005, 0.005, 0.1, M.gold, 0, NECK_Y - 0.06, 0.27, g, 5); const b = cone(0.055, 0.09, M.gold, 0, NECK_Y - 0.15, 0.28, g, 12); b.rotation.x = Math.PI; sphere(0.018, M.gold, 0, NECK_Y - 0.2, 0.28, g, 6); } },
+    glasses: { name: '지팡이 안경', build: function (g) { [-1, 1].forEach(function (sd) { const l = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.016, 6, 18), sd < 0 ? M.red : M.white); l.position.set(sd * 0.16, HEAD_Y + 0.02, HEAD_R - 0.03); g.add(l); const st = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.017, 6, 18, Math.PI), sd < 0 ? M.white : M.red); st.position.set(sd * 0.16, HEAD_Y + 0.02, HEAD_R - 0.03); g.add(st); }); const hook = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.013, 6, 10, Math.PI), M.red); hook.position.set(0, HEAD_Y + 0.05, HEAD_R - 0.03); g.add(hook); } },
+    earrings: { name: '눈사람 귀걸이', build: function (g) { [-1, 1].forEach(function (sd) { sphere(0.036, M.white, sd * 0.42, HEAD_Y - 0.24, 0, g, 8); sphere(0.026, M.white, sd * 0.42, HEAD_Y - 0.185, 0, g, 8); sphere(0.007, M.carrot, sd * 0.42, HEAD_Y - 0.185, 0.026, g, 4); }); } },
+    stocking: { name: '크리스마스 양말', build: function (g) { box(0.08, 0.18, 0.07, M.red, 0.28, 0.5, 0.08, g); box(0.08, 0.045, 0.07, M.white, 0.28, 0.6, 0.08, g); box(0.12, 0.06, 0.07, M.red, 0.31, 0.4, 0.08, g); } },
+    snowflake: { name: '눈꽃 핀', build: function (g) { for (let i = 0; i < 3; i++) { const bar = box(0.13, 0.014, 0.014, M.white, -0.24, HEAD_Y + 0.3, 0.22, g); bar.rotation.z = i * Math.PI / 3; bar.rotation.y = 0.55; } } }
   };
-  // Chibi body: big round head, soft rounded coat, short legs, mittens. The face is on local +z of the inner group, which is turned to face the walking direction.
   function buildAvatar(seed, nick, parent) {
     const r = hashSeed(String(seed || 'guest')); const outer = new THREE.Group(); (parent || scene).add(outer); const g = new THREE.Group(); g.rotation.y = Math.PI; outer.add(g);
-    const coatCol = COATS[Math.floor(r() * COATS.length)]; const coat = new THREE.MeshStandardMaterial({ color: coatCol, roughness: .85 }); const coatDark = new THREE.MeshStandardMaterial({ color: new THREE.Color(coatCol).multiplyScalar(0.72), roughness: .9 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xf6dcc4, roughness: .75 }); const dark = new THREE.MeshStandardMaterial({ color: 0x2a2320, roughness: .9 }); const mitten = new THREE.MeshStandardMaterial({ color: SCARVES[Math.floor(r() * SCARVES.length)], roughness: .9 });
-    const legs = []; [-1, 1].forEach(function (sd) { const leg = new THREE.Group(); leg.position.set(sd * 0.11, 0.36, 0); cyl(0.075, 0.07, 0.3, dark, 0, -0.15, 0, leg, 10); const boot = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), dark); boot.scale.set(1, 0.7, 1.35); boot.position.set(0, -0.3, 0.03); leg.add(boot); g.add(leg); legs.push(leg); });
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.34, 18, 14), coat); body.scale.set(1, 1.18, 0.9); body.position.y = 0.72; g.add(body);
-    const hem = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 8, 20), coatDark); hem.rotation.x = Math.PI / 2; hem.position.y = 0.42; g.add(hem);
-    box(0.05, 0.5, 0.02, M.white, 0, 0.74, 0.31, g); for (let i = 0; i < 3; i++) sphere(0.024, dark, 0, 0.9 - i * 0.16, 0.325, g, 6);
-    const arms = []; [-1, 1].forEach(function (sd) { const arm = new THREE.Group(); arm.position.set(sd * 0.3, 0.98, 0); const a = cyl(0.065, 0.06, 0.42, coat, sd * 0.05, -0.2, 0, arm, 10); a.rotation.z = -sd * 0.25; sphere(0.085, mitten, sd * 0.1, -0.42, 0.02, arm, 10); g.add(arm); arms.push(arm); });
-    const head = sphere(HEAD_R, skin, 0, HEAD_Y, 0, g, 20);
-    const hairCol = [0x3a2a1a, 0x1e1a18, 0x8a5a36, 0xd8b26a, 0x6a3a2a][Math.floor(r() * 5)]; const hair = new THREE.Mesh(new THREE.SphereGeometry(HEAD_R + 0.015, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.52), new THREE.MeshStandardMaterial({ color: hairCol, roughness: 1 })); hair.position.y = HEAD_Y + 0.01; hair.rotation.x = -0.25; g.add(hair);
-    const eyeW = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .3 }); [-1, 1].forEach(function (sd) { sphere(0.05, eyeW, sd * 0.11, HEAD_Y + 0.02, HEAD_R - 0.03, g, 10); sphere(0.03, dark, sd * 0.11, HEAD_Y + 0.02, HEAD_R + 0.012, g, 8); sphere(0.011, eyeW, sd * 0.11 + 0.012, HEAD_Y + 0.035, HEAD_R + 0.035, g, 5); const cheek = sphere(0.045, new THREE.MeshStandardMaterial({ color: 0xf0a0a0, roughness: 1 }), sd * 0.19, HEAD_Y - 0.08, HEAD_R - 0.07, g, 8); cheek.scale.set(1, 0.7, 0.5); });
-    const smile = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.011, 6, 12, Math.PI), dark); smile.position.set(0, HEAD_Y - 0.07, HEAD_R - 0.005); smile.rotation.z = Math.PI; g.add(smile);
+    const bodyCol = BODIES[Math.floor(r() * BODIES.length)];
+    const skin = new THREE.MeshPhysicalMaterial({ color: bodyCol, roughness: .32, metalness: 0, clearcoat: .9, clearcoatRoughness: .25, emissive: new THREE.Color(bodyCol).multiplyScalar(0.18) });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x24201e, roughness: .6 });
+    // legs: short capsules tucked under the body
+    const legs = []; [-1, 1].forEach(function (sd) { const leg = new THREE.Group(); leg.position.set(sd * 0.12, 0.4, 0); const c = capsule(0.11, 0.18, skin, 14); c.position.y = -0.2; leg.add(c); g.add(leg); legs.push(leg); });
+    // body: soft bean, slightly narrower at the top so the head sits in it
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 16), skin); body.scale.set(0.95, 1.2, 0.85); body.position.y = 0.66; g.add(body);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.26, 18, 14), skin); chest.scale.set(1, 0.9, 0.85); chest.position.y = 0.88; g.add(chest);
+    // arms: stubby capsules that start inside the body and angle slightly outward; hands are the rounded ends
+    const arms = []; [-1, 1].forEach(function (sd) { const arm = new THREE.Group(); arm.position.set(sd * 0.22, 0.9, 0); const c = capsule(0.095, 0.3, skin, 14); c.position.set(sd * 0.06, -0.22, 0); c.rotation.z = -sd * 0.22; arm.add(c); g.add(arm); arms.push(arm); });
+    // head: big, a touch wider than tall, with small round ears and a little tuft
+    const head = new THREE.Mesh(new THREE.SphereGeometry(HEAD_R, 28, 22), skin); head.scale.set(1.04, 0.98, 1); head.position.y = HEAD_Y; g.add(head);
+    [-1, 1].forEach(function (sd) { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 12), skin); ear.scale.set(0.45, 1, 1); ear.position.set(sd * 0.43, HEAD_Y - 0.04, 0); g.add(ear); });
+    const tuft = cone(0.07, 0.26, skin, 0.1, HEAD_Y + 0.46, -0.02, g, 10); tuft.rotation.z = -0.55; tuft.rotation.x = -0.2;
+    // face: two dark rounded eyes, a small calm mouth
+    [-1, 1].forEach(function (sd) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), dark); eye.scale.set(0.62, 1, 0.5); eye.position.set(sd * 0.15, HEAD_Y - 0.02, HEAD_R - 0.02); g.add(eye); });
+    box(0.07, 0.012, 0.012, dark, 0, HEAD_Y - 0.19, HEAD_R - 0.01, g);
     const picks = []; const headI = [null, 'santa', 'antlers', 'earmuffs', 'snowflake'][Math.floor(r() * 5)]; const neckI = ['scarf', 'wreath', 'scarf', 'bell'][Math.floor(r() * 4)]; const faceI = r() < 0.5 ? ['glasses', 'earrings'][Math.floor(r() * 2)] : null; const extraI = r() < 0.45 ? ['stocking', 'bell'][Math.floor(r() * 2)] : null;
     [headI, neckI, faceI, extraI].forEach(function (k) { if (k && picks.indexOf(k) < 0) { picks.push(k); ACC[k].build(g, r); } });
-    const tag = textSprite(nick || '친구', '#f3ede2', 2.0); tag.position.y = 2.25; outer.add(tag);
+    const tag = textSprite(nick || '친구', '#f3ede2', 2.0); tag.position.y = 2.2; outer.add(tag);
     outer.userData = { legs: legs, arms: arms, tag: tag, picks: picks, walk: 0, head: head };
     return outer;
   }
-  function animateAvatar(g, moving, dt) { const u = g.userData; if (!u.legs) return; u.walk += dt * (moving ? 9 : 0); if (!moving) u.walk += (Math.round(u.walk / Math.PI) * Math.PI - u.walk) * Math.min(1, dt * 10); const sw = Math.sin(u.walk) * (moving ? 0.75 : 0.25 * Math.abs(Math.sin(u.walk))); u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw; u.arms[0].rotation.x = -sw * 0.8; u.arms[1].rotation.x = sw * 0.8; if (u.throwT > 0) { u.throwT -= dt; u.arms[1].rotation.x = -2.4 + (0.4 - u.throwT) * 5; } g.position.y = moving ? Math.abs(Math.sin(u.walk)) * 0.04 : 0; }
+  function animateAvatar(g, moving, dt) { const u = g.userData; if (!u.legs) return; u.walk += dt * (moving ? 9 : 0); if (!moving) u.walk += (Math.round(u.walk / Math.PI) * Math.PI - u.walk) * Math.min(1, dt * 10); const sw = Math.sin(u.walk) * (moving ? 0.7 : 0.25 * Math.abs(Math.sin(u.walk))); u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw; u.arms[0].rotation.x = -sw * 0.8; u.arms[1].rotation.x = sw * 0.8; if (u.throwT > 0) { u.throwT -= dt; u.arms[1].rotation.x = -2.4 + (0.4 - u.throwT) * 5; } g.position.y = moving ? Math.abs(Math.sin(u.walk)) * 0.04 : 0; if (u.head) { u.head.rotation.z = Math.sin(u.walk * 0.5) * (moving ? 0.06 : 0.02); } }
 
   // ---------- Tree builder ----------
   function profile(opts, t) { return opts.r * (1 - t * 0.82) * 0.92; }
@@ -532,7 +539,7 @@
   // ---------- Zone travel ----------
   const fade = $('fade'); let traveling = false;
   function applyZoneLook() { const z = curZone(); scene.background.setHex(z.sky); scene.fog.color.setHex(z.fog); scene.fog.near = z.fogNear; scene.fog.far = z.fogFar; snowPts.visible = z.outdoor; $('zoneName').textContent = z.name; $('zoneSub').textContent = z.sub; updateFill(); updateVisitors(); }
-  function travel(toIndex) { if (traveling || toIndex === player.zone) return; traveling = true; fade.classList.add('on'); closeSheets(); cancelSnowman(); view = null; $('viewer').hidden = true; $('dock').style.opacity = ''; cine = null; $('hud').classList.remove('cinema'); setCineText(null); setTimeout(function () { player.zone = toIndex; const z = curZone(); player.x = z.spawn[0]; player.z = z.spawn[1]; player.yaw = Math.atan2(player.x, player.z); player.face = player.yaw; player.pitch = 0.05; target = null; marker.visible = false; applyZoneLook(); joinZone(); showToast(z.name + '에 도착했어요'); setTimeout(function () { fade.classList.remove('on'); traveling = false; }, 150); }, 480); }
+  function travel(toIndex) { if (traveling || toIndex === player.zone) return; traveling = true; fade.classList.add('on'); closeSheets(); cancelSnowman(); view = null; $('viewer').hidden = true; $('dock').style.opacity = ''; cine = null; $('hud').classList.remove('cinema'); setCineText(null); setTimeout(function () { player.zone = toIndex; const z = curZone(); player.x = z.spawn[0]; player.z = z.spawn[1]; player.yaw = Math.atan2(player.x, player.z); player.face = player.yaw; player.pitch = 0.05; applyZoneLook(); joinZone(); showToast(z.name + '에 도착했어요'); setTimeout(function () { fade.classList.remove('on'); traveling = false; }, 150); }, 480); }
   applyZoneLook();
 
   // ---------- Entry (nickname) ----------
@@ -582,20 +589,17 @@
 
   // ---------- Input ----------
   const keys = {}; addEventListener('keydown', function (e) { if (sheetOpen() || !enter.hidden) return; keys[e.code] = true; if (e.code === 'Space') { e.preventDefault(); throwSnowball(); } if (/^Arrow/.test(e.code)) e.preventDefault(); }); addEventListener('keyup', function (e) { keys[e.code] = false; });
-  // Controls: drag on the scene turns the camera; a short tap (or click) on the ground walks the avatar there. WASD still works.
-  const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); const pickRay = new THREE.Raycaster(); const pickV = new THREE.Vector2(); const pickHit = new THREE.Vector3();
-  let target = null; // {x,z} local to the zone
-  const marker = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 24), new THREE.MeshBasicMaterial({ color: 0xe4b25a, transparent: true, opacity: .85, depthWrite: false })); marker.rotation.x = -Math.PI / 2; marker.visible = false; scene.add(marker);
-  function tapToMove(cx, cy) { if (sheetOpen() || !enter.hidden || cine || view) return; pickV.set((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1); pickRay.setFromCamera(pickV, camera); if (!pickRay.ray.intersectPlane(ground, pickHit)) return; const z = curZone(); let lx = pickHit.x - z.origin.x, lz = pickHit.z - z.origin.z; const d = Math.hypot(lx, lz); const lim = z.bound - player.radius - 0.1; if (d > lim) { lx *= lim / d; lz *= lim / d; } target = { x: lx, z: lz }; marker.position.set(z.origin.x + lx, 0.03, z.origin.z + lz); marker.visible = true; marker.scale.setScalar(1.6); }
-  let dragging = false, lastX = 0, lastY = 0, downX = 0, downY = 0, downT = 0, moved = 0; const hint = $('hint'); const locked = false;
+  // Controls: on a phone, drag anywhere on the scene and the avatar walks that way (the camera follows behind). On desktop, WASD walks and mouse-drag turns the camera.
+  let dragVec = { x: 0, y: 0 }; let target = null; const marker = { visible: false };
+  let dragging = false, lastX = 0, lastY = 0; const hint = $('hint');
   function look(dx, dy) { player.yaw -= dx * 0.0032; player.pitch = Math.max(-0.5, Math.min(0.75, player.pitch - dy * 0.0025)); }
-  canvas.addEventListener('mousedown', function (e) { dragging = true; lastX = downX = e.clientX; lastY = downY = e.clientY; downT = performance.now(); moved = 0; });
-  addEventListener('mousemove', function (e) { if (!dragging) return; moved += Math.abs(e.clientX - lastX) + Math.abs(e.clientY - lastY); look(e.clientX - lastX, e.clientY - lastY); lastX = e.clientX; lastY = e.clientY; });
-  addEventListener('mouseup', function (e) { if (!dragging) return; dragging = false; if (moved < 8 && performance.now() - downT < 400 && e.target === canvas) tapToMove(e.clientX, e.clientY); });
-  let lookId = null, lookLast = null, lookStart = null, lookMoved = 0, lookT = 0;
-  addEventListener('touchstart', function (e) { if (sheetOpen() || !enter.hidden) return; for (const t of e.changedTouches) { const el = document.elementFromPoint(t.clientX, t.clientY); if (lookId === null && el === canvas) { lookId = t.identifier; lookLast = { x: t.clientX, y: t.clientY }; lookStart = lookLast; lookMoved = 0; lookT = performance.now(); } } }, { passive: true });
-  addEventListener('touchmove', function (e) { for (const t of e.changedTouches) { if (t.identifier === lookId) { lookMoved += Math.abs(t.clientX - lookLast.x) + Math.abs(t.clientY - lookLast.y); look((t.clientX - lookLast.x) * 1.2, (t.clientY - lookLast.y) * 1.2); lookLast = { x: t.clientX, y: t.clientY }; } } if (lookId !== null) e.preventDefault(); }, { passive: false });
-  function endTouch(e) { for (const t of e.changedTouches) { if (t.identifier === lookId) { if (lookMoved < 12 && performance.now() - lookT < 400) tapToMove(t.clientX, t.clientY); lookId = null; } } } addEventListener('touchend', endTouch); addEventListener('touchcancel', endTouch);
+  canvas.addEventListener('mousedown', function (e) { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+  addEventListener('mousemove', function (e) { if (!dragging) return; look(e.clientX - lastX, e.clientY - lastY); lastX = e.clientX; lastY = e.clientY; });
+  addEventListener('mouseup', function () { dragging = false; });
+  let moveId = null, moveStart = null;
+  addEventListener('touchstart', function (e) { if (sheetOpen() || !enter.hidden) return; for (const t of e.changedTouches) { const el = document.elementFromPoint(t.clientX, t.clientY); if (moveId === null && el === canvas) { moveId = t.identifier; moveStart = { x: t.clientX, y: t.clientY }; dragVec = { x: 0, y: 0 }; } } }, { passive: true });
+  addEventListener('touchmove', function (e) { for (const t of e.changedTouches) { if (t.identifier === moveId) { const dx = t.clientX - moveStart.x, dy = t.clientY - moveStart.y; const len = Math.hypot(dx, dy); const R = 70; if (len < 8) { dragVec = { x: 0, y: 0 }; } else { const k = Math.min(1, (len - 8) / R); dragVec = { x: dx / len * k, y: dy / len * k }; } } } if (moveId !== null) e.preventDefault(); }, { passive: false });
+  function endTouch(e) { for (const t of e.changedTouches) { if (t.identifier === moveId) { moveId = null; dragVec = { x: 0, y: 0 }; } } } addEventListener('touchend', endTouch); addEventListener('touchcancel', endTouch);
   function tryMove(nx, nz) { const z = curZone(); const r = player.radius; const d = Math.hypot(nx, nz); const lim = z.bound - r; if (d > lim) { nx *= lim / d; nz *= lim / d; } const wx = z.origin.x + nx, wz = z.origin.z + nz; for (const c of colliders) { if (Math.hypot(wx - c.x, wz - c.z) < c.r + r) return false; } for (const c of dynColliders) { if (Math.hypot(wx - c.x, wz - c.z) < c.r + r) return false; } player.x = nx; player.z = nz; return true; }
 
   // ---------- Sheets / toast ----------
@@ -674,7 +678,7 @@
   function wideView(z, idx) { const w = slotWorld(z, idx); const h = z.treeObj.h; return { pos: z.origin.clone().addScaledVector(w.n, h * 1.15 + z.tree.r).add(new THREE.Vector3(0, h * 0.5, 0)), look: z.origin.clone().add(new THREE.Vector3(0, h * 0.42, 0)) }; }
   function playerView() { return followCam(); }
   // Third-person follow camera: behind and above the avatar; drag changes the elevation; clamped inside the zone
-  function followCam() { const z = curZone(); const elev = Math.max(0.12, Math.min(1.1, 0.38 + player.pitch)); const dist = z.outdoor ? 4.4 : 2.6; const back = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw)); const pos = new THREE.Vector3(worldX(), 0, worldZ()).addScaledVector(back, dist * Math.cos(elev)).add(new THREE.Vector3(0, 1.0 + dist * Math.sin(elev), 0)); const lim = z.bound - 0.4; const lx = pos.x - z.origin.x, lz = pos.z - z.origin.z; const d = Math.hypot(lx, lz); if (d > lim) { pos.x = z.origin.x + lx * lim / d; pos.z = z.origin.z + lz * lim / d; } if (!z.outdoor) pos.y = Math.min(pos.y, 3.6); return { pos: pos, look: new THREE.Vector3(worldX(), 0.95, worldZ()) }; }
+  function followCam() { const z = curZone(); const elev = Math.max(0.12, Math.min(1.1, 0.3 + player.pitch)); const dist = z.outdoor ? 4.4 : 2.6; const back = new THREE.Vector3(Math.sin(player.yaw), 0, Math.cos(player.yaw)); const pos = new THREE.Vector3(worldX(), 0, worldZ()).addScaledVector(back, dist * Math.cos(elev)).add(new THREE.Vector3(0, 1.0 + dist * Math.sin(elev), 0)); const lim = z.bound - 0.4; const lx = pos.x - z.origin.x, lz = pos.z - z.origin.z; const d = Math.hypot(lx, lz); if (d > lim) { pos.x = z.origin.x + lx * lim / d; pos.z = z.origin.z + lz * lim / d; } if (!z.outdoor) pos.y = Math.min(pos.y, 3.6); return { pos: pos, look: new THREE.Vector3(worldX(), 1.0, worldZ()) }; }
   function cineStart(steps, onDone) { const cur = cineCurrent(); cine = { steps: steps, i: 0, t: 0, from: cur, onDone: onDone }; $('hud').classList.add('cinema'); if (document.pointerLockElement) document.exitPointerLock(); setCineText(steps[0].text); }
   function cineCurrent() { if (cine) return { pos: camPos.clone(), look: camLook.clone() }; return playerView(); }
   function setCineText(t) { const el = $('cine'); if (t) { el.hidden = false; $('cineText').textContent = t; } else el.hidden = true; }
@@ -723,7 +727,7 @@
 
   // Snowball
   const balls = []; let throwCd = 0; const throwBtn = $('throwBtn');
-  function throwSnowball() { if (throwCd > 0 || sheetOpen() || !enter.hidden) return; throwCd = 0.9; player.face = player.yaw; target = null; marker.visible = false; const b = sphere(0.11, M.white, 0, 0, 0, scene, 8); const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.12).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw); b.position.set(worldX(), 1.0, worldZ()).addScaledVector(dir, 0.45); balls.push({ m: b, v: dir.multiplyScalar(11).add(new THREE.Vector3(0, 2.0, 0)), t: 0 }); if (me) me.userData.throwT = 0.4; emit({ type: 'throw', zone: curZone().id, x: player.x, z: player.z, yaw: player.yaw, pitch: 0.12 }); }
+  function throwSnowball() { if (throwCd > 0 || sheetOpen() || !enter.hidden) return; throwCd = 0.9; player.face = player.yaw; const b = sphere(0.11, M.white, 0, 0, 0, scene, 8); const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.12).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw); b.position.set(worldX(), 1.0, worldZ()).addScaledVector(dir, 0.45); balls.push({ m: b, v: dir.multiplyScalar(11).add(new THREE.Vector3(0, 2.0, 0)), t: 0 }); if (me) me.userData.throwT = 0.4; emit({ type: 'throw', zone: curZone().id, x: player.x, z: player.z, yaw: player.yaw, pitch: 0.12 }); }
   throwBtn.addEventListener('click', throwSnowball);
   function puff(p, big) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, depthWrite: false, opacity: .9 })); s.position.copy(p); s.scale.setScalar(big ? 0.9 : 0.5); scene.add(s); sparks.push({ m: s, t: 2.8, puff: true }); }
 
@@ -734,11 +738,10 @@
     const dt = Math.min(clock.getDelta(), 0.05); tAcc += dt; const z = curZone(); let movedNow = false; const ui = sheetOpen() || !enter.hidden || !!cine || !!view;
     if (!ui && !traveling) {
       let fx = 0, fz = 0; if (keys.KeyW || keys.ArrowUp) fz -= 1; if (keys.KeyS || keys.ArrowDown) fz += 1; if (keys.KeyA || keys.ArrowLeft) fx -= 1; if (keys.KeyD || keys.ArrowRight) fx += 1;
-      let dx = 0, dz = 0; const len = Math.hypot(fx, fz);
-      if (len > 0) { if (len > 1) { fx /= len; fz /= len; } target = null; marker.visible = false; const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw); dx = (fx * cos + fz * sin) * player.speed * dt; dz = (-fx * sin + fz * cos) * player.speed * dt; }
-      else if (target) { const tx = target.x - player.x, tz = target.z - player.z; const td = Math.hypot(tx, tz); if (td < 0.08) { target = null; marker.visible = false; } else { const stp = Math.min(td, player.speed * dt); dx = tx / td * stp; dz = tz / td * stp; } }
-      if (dx || dz) { const ok = tryMove(player.x + dx, player.z + dz) || tryMove(player.x + dx, player.z) || tryMove(player.x, player.z + dz); if (!ok && target) { target = null; marker.visible = false; } else { player.face = Math.atan2(-dx, -dz); bob += dt * 9; movedNow = true; if (!tipGone && (tipGone = true)) $('tip').classList.add('gone'); } }
-      if (marker.visible) { marker.scale.setScalar(1 + Math.sin(tAcc * 6) * 0.12); }
+      fx += dragVec.x; fz += dragVec.y; let dx = 0, dz = 0; const len = Math.hypot(fx, fz);
+      if (len > 0) { if (len > 1) { fx /= len; fz /= len; } const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw); dx = (fx * cos + fz * sin) * player.speed * dt; dz = (-fx * sin + fz * cos) * player.speed * dt; }
+      if (dx || dz) { tryMove(player.x + dx, player.z + dz) || tryMove(player.x + dx, player.z) || tryMove(player.x, player.z + dz); const want = Math.atan2(-dx, -dz); let dy = want - player.face; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); player.face += dy * Math.min(1, dt * 12); bob += dt * 9; movedNow = true; if (!tipGone && (tipGone = true)) $('tip').classList.add('gone');
+        if (isTouch && !building) { let cy = player.face - player.yaw; cy = Math.atan2(Math.sin(cy), Math.cos(cy)); if (Math.abs(cy) < 2.4) player.yaw += cy * Math.min(1, dt * 1.6); } }
     }
     shake = Math.max(0, shake - dt * 1.6);
     if (me) { me.position.x = worldX(); me.position.z = worldZ(); me.rotation.y = player.face; me.rotation.z = Math.sin(tAcc * 30) * shake * 0.2; animateAvatar(me, movedNow, dt); me.visible = !cine || !!view; }
