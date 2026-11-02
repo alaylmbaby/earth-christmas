@@ -271,7 +271,7 @@
   const $ = function (id) { return document.getElementById(id); };
   const LOG = []; function logLine(t) { LOG.push(new Date().toTimeString().slice(0, 8) + ' ' + t); if (LOG.length > 40) LOG.shift(); const el = document.getElementById('debug'); if (el && !el.hidden) el.textContent = LOG.join('\n'); }
   window.xmasLog = logLine;
-  addEventListener('error', function (e) { const msg = (e.error && e.error.stack) ? e.error.stack.split('\n').slice(0, 3).join(' | ') : (e.message || String(e.error)) + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : ''); logLine('ERROR ' + msg); const dbg = document.getElementById('debug'); if (dbg) { dbg.hidden = false; dbg.textContent = LOG.join('\n'); } const h = $('hint'); h.style.display = 'block'; h.style.opacity = '1'; h.textContent = '오류: ' + msg; });
+  addEventListener('error', function (e) { const msg = (e.error && e.error.stack) ? e.error.stack.split('\n').slice(0, 3).join(' | ') : (e.message || String(e.error)) + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : ''); logLine('ERROR ' + msg); if (!window.xmasDebug) return; const dbg = document.getElementById('debug'); if (dbg) { dbg.hidden = false; dbg.textContent = LOG.join('\n'); } const h = $('hint'); h.style.display = 'block'; h.style.opacity = '1'; h.textContent = '오류: ' + msg; });
   addEventListener('unhandledrejection', function (e) { const r = e.reason; logLine('REJECT ' + (r && (r.message || r.code) ? (r.message || '') + ' ' + (r.code || '') : String(r))); });
   if (!window.THREE) { $('hint').textContent = '3D 라이브러리를 불러오지 못했어요. 새로고침해 주세요.'; return; }
 
@@ -540,7 +540,9 @@
     onEvent: function (fn) { eventListeners.push(fn); }
   };
   const eventListeners = []; function emit(ev) { eventListeners.forEach(function (fn) { fn(ev); }); }
-  $('visitorCount').addEventListener('click', function () { const el = $('debug'); el.hidden = !el.hidden; if (!el.hidden) el.textContent = LOG.join('\n') || '(기록 없음)'; });
+  // Hidden diagnostics: tap the visitor count 5 times within 2 seconds (or open with ?debug)
+  window.xmasDebug = /[?&]debug/.test(location.search); let dbgTaps = [];
+  $('visitorCount').addEventListener('click', function () { const now = Date.now(); dbgTaps = dbgTaps.filter(function (t) { return now - t < 2000; }); dbgTaps.push(now); const el = $('debug'); if (!el.hidden) { el.hidden = true; return; } if (dbgTaps.length >= 5) { dbgTaps = []; window.xmasDebug = true; el.hidden = false; el.textContent = LOG.join('\n') || '(기록 없음)'; } });
   function updateVisitors() { let n = 1; remote.forEach(function (v) { v.visible = v.userData.zone === player.zone; if (v.visible) n++; }); $('visitorCount').textContent = n + '명 함께 있음'; }
 
   // ---------- Tree + snowmen contents ----------
