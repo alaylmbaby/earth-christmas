@@ -20,13 +20,14 @@
     color-scheme: dark;
   }
   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --panel: rgba(16, 22, 38, 0.84); color-scheme: dark; } }
-  html, body { height: 100%; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { position: fixed; inset: 0; width: 100%; }
   body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; margin: 0; overflow: hidden; -webkit-user-select: none; user-select: none; touch-action: none; }
   #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   button { font: inherit; color: inherit; cursor: pointer; }
   button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  .hud { position: fixed; inset: 0; pointer-events: none; }
+  .hud { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
   .hud > * { pointer-events: auto; }
   .hud .quiet { pointer-events: none; }
 
@@ -321,7 +322,7 @@
   // Everyone shares one body; a seed (account id) picks the coat color and two or three festive accessories, so a person looks the same on every device.
   function hashSeed(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return function () { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; }
   // Avatar: one seamless pearly figure in the spirit of a vinyl toy. Big round head, tiny body, arms and legs that blend into it, two dark eyes and a small mouth.
-  const BODIES = [0xf3ece3, 0xf6d9de, 0xd8e7f6, 0xdff0dd, 0xf8e7cb, 0xe8def6, 0xfbefcc, 0xf6dfd3];
+  const BODIES = [0xe9d2b8, 0xee9fae, 0x8fb8e8, 0x8fcf9c, 0xf0c66e, 0xb59fe6, 0xf2a862, 0xe68a8a];
   const SCARVES = [0xc8463a, 0xe4b25a, 0x3f9d5a, 0xf6f0e0, 0x2b6f9e];
   const HEAD_Y = 1.28, HEAD_R = 0.42, NECK_Y = 0.9;
   function capsule(r, h, mat, seg) { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, seg || 12), mat); g.add(c); const a = new THREE.Mesh(new THREE.SphereGeometry(r, seg || 12, 10), mat); a.position.y = h / 2; g.add(a); const b = new THREE.Mesh(new THREE.SphereGeometry(r, seg || 12, 10), mat); b.position.y = -h / 2; g.add(b); return g; }
@@ -340,7 +341,7 @@
   function buildAvatar(seed, nick, parent) {
     const r = hashSeed(String(seed || 'guest')); const outer = new THREE.Group(); (parent || scene).add(outer); const g = new THREE.Group(); g.rotation.y = Math.PI; outer.add(g);
     const bodyCol = BODIES[Math.floor(r() * BODIES.length)];
-    const skin = new THREE.MeshPhysicalMaterial({ color: bodyCol, roughness: .32, metalness: 0, clearcoat: .9, clearcoatRoughness: .25, emissive: new THREE.Color(bodyCol).multiplyScalar(0.18) });
+    const skin = new THREE.MeshPhysicalMaterial({ color: bodyCol, roughness: .32, metalness: 0, clearcoat: .9, clearcoatRoughness: .25, emissive: new THREE.Color(bodyCol).multiplyScalar(0.22) });
     const dark = new THREE.MeshStandardMaterial({ color: 0x24201e, roughness: .6 });
     // legs: short capsules tucked under the body
     const legs = []; [-1, 1].forEach(function (sd) { const leg = new THREE.Group(); leg.position.set(sd * 0.12, 0.4, 0); const c = capsule(0.11, 0.18, skin, 14); c.position.y = -0.2; leg.add(c); g.add(leg); legs.push(leg); });
@@ -354,15 +355,27 @@
     [-1, 1].forEach(function (sd) { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 12), skin); ear.scale.set(0.45, 1, 1); ear.position.set(sd * 0.43, HEAD_Y - 0.04, 0); g.add(ear); });
     const tuft = cone(0.07, 0.26, skin, 0.1, HEAD_Y + 0.46, -0.02, g, 10); tuft.rotation.z = -0.55; tuft.rotation.x = -0.2;
     // face: two dark rounded eyes, a small calm mouth
-    [-1, 1].forEach(function (sd) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), dark); eye.scale.set(0.62, 1, 0.5); eye.position.set(sd * 0.15, HEAD_Y - 0.02, HEAD_R - 0.02); g.add(eye); });
-    box(0.07, 0.012, 0.012, dark, 0, HEAD_Y - 0.19, HEAD_R - 0.01, g);
+    const eyes = []; [-1, 1].forEach(function (sd) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), dark); eye.scale.set(0.62, 1, 0.5); eye.position.set(sd * 0.15, HEAD_Y - 0.02, HEAD_R - 0.02); g.add(eye); eyes.push(eye); });
+    const mouthLine = box(0.07, 0.012, 0.012, dark, 0, HEAD_Y - 0.19, HEAD_R - 0.01, g);
+    const mouthSmile = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.011, 6, 14, Math.PI), dark); mouthSmile.position.set(0, HEAD_Y - 0.16, HEAD_R - 0.005); mouthSmile.rotation.z = Math.PI; mouthSmile.visible = false; g.add(mouthSmile);
+    const mouthO = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), dark); mouthO.scale.set(0.85, 1, 0.4); mouthO.position.set(0, HEAD_Y - 0.19, HEAD_R - 0.005); mouthO.visible = false; g.add(mouthO);
+    // closed-eye arcs for blinking
+    const lids = []; [-1, 1].forEach(function (sd) { const lid = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.011, 6, 12, Math.PI), dark); lid.position.set(sd * 0.15, HEAD_Y - 0.02, HEAD_R - 0.01); lid.rotation.z = Math.PI; lid.visible = false; g.add(lid); lids.push(lid); });
     const picks = []; const headI = [null, 'santa', 'antlers', 'earmuffs', 'snowflake'][Math.floor(r() * 5)]; const neckI = ['scarf', 'wreath', 'scarf', 'bell'][Math.floor(r() * 4)]; const faceI = r() < 0.5 ? ['glasses', 'earrings'][Math.floor(r() * 2)] : null; const extraI = r() < 0.45 ? ['stocking', 'bell'][Math.floor(r() * 2)] : null;
     [headI, neckI, faceI, extraI].forEach(function (k) { if (k && picks.indexOf(k) < 0) { picks.push(k); ACC[k].build(g, r); } });
     const tag = textSprite(nick || '친구', '#f3ede2', 2.0); tag.position.y = 2.2; outer.add(tag);
-    outer.userData = { legs: legs, arms: arms, tag: tag, picks: picks, walk: 0, head: head };
+    outer.userData = { legs: legs, arms: arms, tag: tag, picks: picks, walk: 0, head: head, eyes: eyes, lids: lids, mouthLine: mouthLine, mouthSmile: mouthSmile, mouthO: mouthO, expr: 'neutral', exprUntil: 0, blinkAt: 2 + Math.random() * 4, blinkT: 0 };
     return outer;
   }
-  function animateAvatar(g, moving, dt) { const u = g.userData; if (!u.legs) return; u.walk += dt * (moving ? 9 : 0); if (!moving) u.walk += (Math.round(u.walk / Math.PI) * Math.PI - u.walk) * Math.min(1, dt * 10); const sw = Math.sin(u.walk) * (moving ? 0.7 : 0.25 * Math.abs(Math.sin(u.walk))); u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw; u.arms[0].rotation.x = -sw * 0.8; u.arms[1].rotation.x = sw * 0.8; if (u.throwT > 0) { u.throwT -= dt; u.arms[1].rotation.x = -2.4 + (0.4 - u.throwT) * 5; } g.position.y = moving ? Math.abs(Math.sin(u.walk)) * 0.04 : 0; if (u.head) { u.head.rotation.z = Math.sin(u.walk * 0.5) * (moving ? 0.06 : 0.02); } }
+  // Expressions: 'neutral' | 'smile' | 'surprise' | 'sleep' (eyes closed). Blinks happen on their own every few seconds.
+  function setFace(g, expr, seconds) { const u = g.userData; if (!u.eyes) return; u.expr = expr; u.exprUntil = seconds ? performance.now() + seconds * 1000 : 0; }
+  function faceUpdate(g, dt) { const u = g.userData; if (!u.eyes) return; const now = performance.now(); if (u.exprUntil && now > u.exprUntil) { u.expr = 'neutral'; u.exprUntil = 0; }
+    u.blinkAt -= dt; let closed = u.expr === 'sleep'; if (u.blinkAt <= 0) { u.blinkT = 0.14; u.blinkAt = 2.5 + Math.random() * 4; } if (u.blinkT > 0) { u.blinkT -= dt; closed = true; }
+    const surprise = u.expr === 'surprise', smile = u.expr === 'smile';
+    u.eyes.forEach(function (e) { e.visible = !closed; e.scale.set(surprise ? 1.1 : 0.62, surprise ? 1.1 : (smile ? 0.8 : 1), 0.5); });
+    u.lids.forEach(function (l) { l.visible = closed; l.rotation.z = smile || u.expr === 'sleep' ? 0 : Math.PI; });
+    u.mouthLine.visible = !smile && !surprise; u.mouthSmile.visible = smile; u.mouthO.visible = surprise; }
+  function animateAvatar(g, moving, dt) { faceUpdate(g, dt); const u = g.userData; if (!u.legs) return; u.walk += dt * (moving ? 9 : 0); if (!moving) u.walk += (Math.round(u.walk / Math.PI) * Math.PI - u.walk) * Math.min(1, dt * 10); const sw = Math.sin(u.walk) * (moving ? 0.7 : 0.25 * Math.abs(Math.sin(u.walk))); u.legs[0].rotation.x = sw; u.legs[1].rotation.x = -sw; u.arms[0].rotation.x = -sw * 0.8; u.arms[1].rotation.x = sw * 0.8; if (u.throwT > 0) { u.throwT -= dt; u.arms[1].rotation.x = -2.4 + (0.4 - u.throwT) * 5; } g.position.y = moving ? Math.abs(Math.sin(u.walk)) * 0.04 : 0; if (u.head) { u.head.rotation.z = Math.sin(u.walk * 0.5) * (moving ? 0.06 : 0.02); } }
 
   // ---------- Tree builder ----------
   function profile(opts, t) { return opts.r * (1 - t * 0.82) * 0.92; }
@@ -513,7 +526,7 @@
     /** Sync layer -> page: another visitor added an ornament or snowman. */
     applyRemoteItem: function (zoneId, item) { const z = ZONES.find(function (z) { return z.id === zoneId; }); if (!z) return; if (item.type === 'snowman') { data.snowmen[z.id].push(item); rebuildSnowmen(z); } else { data.ornaments[z.id].push(item); rebuildTree(z); } updateFill(); },
     /** Sync layer -> page: a snowball hit me. */
-    hitMe: function (fromName) { shake = 1; showToast((fromName || '누군가') + '의 눈덩이에 맞았어요 ❄'); },
+    hitMe: function (fromName) { shake = 1; if (me) setFace(me, 'surprise', 1.6); showToast((fromName || '누군가') + '의 눈덩이에 맞았어요 ❄'); },
     /** Page -> sync layer: register a callback for events I cause (throw, hit, ornament, snowman, wish). */
     onEvent: function (fn) { eventListeners.push(fn); }
   };
@@ -544,7 +557,7 @@
 
   // ---------- Entry (nickname) ----------
   const enter = $('enter'); const nickInput = $('nickInput');
-  let tipGone = false;
+  let tipGone = false, idleT = 0;
   let me = null; function setNick(n) { data.nick = n; store.save('nick', n); $('meName').textContent = '나: ' + n; if (me) scene.remove(me); me = buildAvatar(uid || data.me, n, scene); me.position.set(worldX(), 0, worldZ()); me.rotation.y = player.face; }
   async function bootAuth() {
     if (!sb) { if (data.nick) { setNick(data.nick); enter.hidden = true; } return; }
@@ -644,7 +657,7 @@
       { to: { pos: eye.clone(), look: top.clone().add(new THREE.Vector3(0, 0.6, 0)) }, dur: 0.9, hold: 1.1, text: '"' + (txt.length > 14 ? txt.slice(0, 14) + '…' : txt) + '"' },
       { to: { pos: eye.clone(), look: top.clone().lerp(end, 0.55) }, dur: 2.2, hold: 1.0, text: '소원이 밤하늘로 올라가요' },
       { to: playerView(), dur: 1.0, hold: 0 }
-    ], function () { showToast('소원을 산타가 받았어요 ✦'); }); });
+    ], function () { showToast('소원을 산타가 받았어요 ✦'); }); if (me) setFace(me, 'sleep', 2.2); setTimeout(function () { if (me) setFace(me, 'smile', 4); }, 2300); });
   function shootingUpdate(dt) { for (let i = shooting.length - 1; i >= 0; i--) { const w = shooting[i]; w.t += dt; const t = w.t;
       // phase 1 (0–2s): words rise and glow; phase 2 (2–4.6s): star streaks to the sky; then fade
       if (t < 2) { const k = t / 2; w.label.position.y = w.top.y + k * 1.6; w.label.material.opacity = Math.min(1, k * 3) * (1 - Math.max(0, k - 0.75) * 4); w.head.position.copy(w.label.position).add(new THREE.Vector3(0, -0.25, 0)); w.head.scale.setScalar(1.2 + Math.sin(t * 9) * 0.25); }
@@ -667,7 +680,7 @@
       { to: closeupView(z, idx), dur: 1.3, hold: 1.4, text: data.nick + '의 ' + ORD(mineN) + ' 오너먼트' },
       { to: wideView(z, idx), dur: 1.6, hold: 1.6, text: z.name + ' 트리 · ' + itemsOn(z) + ' / 500' },
       { to: playerView(), dur: 1.1, hold: 0 }
-    ], function () { showToast('오너먼트가 트리에 걸렸어요 (' + itemsOn(z) + '/500)'); }); });
+    ], function () { showToast('오너먼트가 트리에 걸렸어요 (' + itemsOn(z) + '/500)'); }); if (me) setFace(me, 'smile', 7); });
   function ORD(n) { return ['', '첫 번째', '두 번째', '세 번째', '네 번째', '다섯 번째', '여섯 번째', '일곱 번째', '여덟 번째', '아홉 번째', '열 번째'][n] || (n + '번째'); }
 
   // ----- Camera flights -----
@@ -718,7 +731,7 @@
     else { const d = Math.hypot(player.x - building.base.x, player.z - building.base.z); if (d > 3.2) return showToast('눈사람 옆으로 가서 올려 주세요'); }
     scene.remove(b); building.ball = null; building.placed.push(building.stage);
     const next = building.stage + 1; building.group.parent && building.group.parent.remove(building.group); building.group = buildSnowman(z.snowGroup, building.base.x, building.base.z, building.base.ry, next, data.nick); building.group.userData.pop = 0.001;
-    if (next >= 3) { const base = building.base; const finish = function (rec) { if (!data.snowmen[z.id].some(function (x) { return rec.id && x.id === rec.id; })) data.snowmen[z.id].push(rec); if (!online) store.save('snowmen', data.snowmen); rebuildSnowmen(z); dynColliders = snowmanColliders(); building = null; $('rollPanel').hidden = true; $('hud').classList.remove('rolling'); showToast('눈사람 완성! ' + data.nick + '의 눈사람이 여기 서 있어요 ☃'); emit({ type: 'snowman', zone: z.id, item: rec }); };
+    if (next >= 3) { const base = building.base; const finish = function (rec) { if (!data.snowmen[z.id].some(function (x) { return rec.id && x.id === rec.id; })) data.snowmen[z.id].push(rec); if (!online) store.save('snowmen', data.snowmen); rebuildSnowmen(z); dynColliders = snowmanColliders(); building = null; $('rollPanel').hidden = true; $('hud').classList.remove('rolling'); showToast('눈사람 완성! ' + data.nick + '의 눈사람이 여기 서 있어요 ☃'); if (me) setFace(me, 'smile', 4); emit({ type: 'snowman', zone: z.id, item: rec }); };
       if (online) { sb.rpc('build_snowman', { p_zone: z.id, p_x: base.x, p_z: base.z, p_ry: base.ry, p_nick: data.nick }).then(function (r) { if (r.error) { console.warn(r.error); showToast(/ZONE_FULL/.test(r.error.message) ? '여기는 눈사람이 가득해요' : '눈사람을 세우지 못했어요'); cancelSnowman(); return; } finish(mapSnow(r.data)); }); }
       else finish({ type: 'snowman', x: base.x, z: base.z, ry: base.ry, name: data.nick, owner: data.me, at: Date.now() }); }
     else { showToast(STAGES[building.stage].name + '을 올렸어요. 이제 ' + STAGES[next].name + ' 차례'); startBall(next); } });
@@ -732,7 +745,7 @@
   function puff(p, big) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, depthWrite: false, opacity: .9 })); s.position.copy(p); s.scale.setScalar(big ? 0.9 : 0.5); scene.add(s); sparks.push({ m: s, t: 2.8, puff: true }); }
 
   // ---------- Loop ----------
-  function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); } addEventListener('resize', resize); resize();
+  function resize() { const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight; renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 2 : 2)); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); } addEventListener('resize', resize); if (window.visualViewport) visualViewport.addEventListener('resize', resize); addEventListener('orientationchange', function () { setTimeout(resize, 300); }); resize();
   const clock = new THREE.Clock(); let bob = 0, lastBroadcast = 0, tAcc = 0; const camQ = new THREE.Quaternion();
   function frame() {
     const dt = Math.min(clock.getDelta(), 0.05); tAcc += dt; const z = curZone(); let movedNow = false; const ui = sheetOpen() || !enter.hidden || !!cine || !!view;
@@ -744,7 +757,7 @@
         if (isTouch && !building) { let cy = player.face - player.yaw; cy = Math.atan2(Math.sin(cy), Math.cos(cy)); if (Math.abs(cy) < 2.4) player.yaw += cy * Math.min(1, dt * 1.6); } }
     }
     shake = Math.max(0, shake - dt * 1.6);
-    if (me) { me.position.x = worldX(); me.position.z = worldZ(); me.rotation.y = player.face; me.rotation.z = Math.sin(tAcc * 30) * shake * 0.2; animateAvatar(me, movedNow, dt); me.visible = !cine || !!view; }
+    if (me) { if (movedNow) { idleT = 0; if (me.userData.expr === 'sleep' && !me.userData.exprUntil) setFace(me, 'neutral'); } else { idleT += dt; if (idleT > 25 && me.userData.expr === 'neutral') setFace(me, 'sleep', 0); } me.position.x = worldX(); me.position.z = worldZ(); me.rotation.y = player.face; me.rotation.z = Math.sin(tAcc * 30) * shake * 0.2; animateAvatar(me, movedNow, dt); me.visible = !cine || !!view; }
     if (cine) cineUpdate(dt); else { const fv = followCam(); camera.position.copy(fv.pos); camera.position.x += Math.sin(tAcc * 40) * shake * 0.08; camera.position.y += Math.sin(tAcc * 33) * shake * 0.05; camera.lookAt(fv.look); }
     popUpdate(dt); shootingUpdate(dt);
     // Context
@@ -761,7 +774,7 @@
     if (z.fire) { z.fire.intensity = 2 + Math.sin(tAcc * 11) * 0.3 + Math.sin(tAcc * 5.3) * 0.25; z.ember.scale.y = 1 + Math.sin(tAcc * 9) * 0.15; }
     if (snowPts.visible) { const pos = snowGeo.attributes.position.array; for (let i = 0; i < SNOW_N; i++) { pos[i * 3 + 1] -= dt * (0.6 + (i % 5) * 0.15); pos[i * 3] += Math.sin(tAcc + i) * dt * 0.15; if (pos[i * 3 + 1] < 0) { pos[i * 3 + 1] = 14; pos[i * 3] = (Math.random() - .5) * 40; pos[i * 3 + 2] = (Math.random() - .5) * 40; } } snowGeo.attributes.position.needsUpdate = true; snowPts.position.set(z.origin.x, 0, z.origin.z); }
     // Snowballs
-    for (let i = balls.length - 1; i >= 0; i--) { const b = balls[i]; b.t += dt; b.v.y -= 9.8 * dt; b.m.position.addScaledVector(b.v, dt); let hit = false; if (!b.remote) remote.forEach(function (v) { if (!hit && v.visible && b.m.position.distanceTo(new THREE.Vector3(v.position.x, 0.9, v.position.z)) < 0.7) { hit = true; v.userData.wobble = 1; puff(b.m.position, true); showToast('명중! ❄'); emit({ type: 'hit', target: v.userData.id, from: data.nick }); } }); const treeD = Math.hypot(b.m.position.x - z.origin.x, b.m.position.z - z.origin.z); if (!hit && (b.m.position.y < 0.08 || treeD < profile(z.tree, Math.max(0, Math.min(1, (b.m.position.y - z.treeObj.trunkH) / z.treeObj.bodyH))) + 0.1 || b.t > 4)) { hit = true; puff(b.m.position, false); } if (hit) { scene.remove(b.m); balls.splice(i, 1); } }
+    for (let i = balls.length - 1; i >= 0; i--) { const b = balls[i]; b.t += dt; b.v.y -= 9.8 * dt; b.m.position.addScaledVector(b.v, dt); let hit = false; if (!b.remote) remote.forEach(function (v) { if (!hit && v.visible && b.m.position.distanceTo(new THREE.Vector3(v.position.x, 0.9, v.position.z)) < 0.7) { hit = true; v.userData.wobble = 1; setFace(v, 'surprise', 1.6); if (me) setFace(me, 'smile', 2.5); puff(b.m.position, true); showToast('명중! ❄'); emit({ type: 'hit', target: v.userData.id, from: data.nick }); } }); const treeD = Math.hypot(b.m.position.x - z.origin.x, b.m.position.z - z.origin.z); if (!hit && (b.m.position.y < 0.08 || treeD < profile(z.tree, Math.max(0, Math.min(1, (b.m.position.y - z.treeObj.trunkH) / z.treeObj.bodyH))) + 0.1 || b.t > 4)) { hit = true; puff(b.m.position, false); } if (hit) { scene.remove(b.m); balls.splice(i, 1); } }
     remote.forEach(function (v) { const tg = v.userData.target; let mv = false; if (tg) { const ddx = tg.x - v.position.x, ddz = tg.z - v.position.z; mv = Math.hypot(ddx, ddz) > 0.03; v.position.x += ddx * Math.min(1, dt * 8); v.position.z += ddz * Math.min(1, dt * 8); let dy = tg.yaw - v.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); v.rotation.y += dy * Math.min(1, dt * 8); } animateAvatar(v, mv, dt); if (v.userData.wobble > 0) { v.userData.wobble -= dt * 1.5; v.rotation.z = Math.sin(tAcc * 30) * v.userData.wobble * 0.25; } });
     for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.t += dt; if (s.puff) { s.m.scale.multiplyScalar(1 + dt * 2.5); s.m.material.opacity -= dt * 2.2; if (s.m.material.opacity <= 0) { scene.remove(s.m); sparks.splice(i, 1); } continue; } s.m.position.y += dt * 2.2; s.m.position.x += Math.sin(s.t * 3) * dt * 0.4; s.m.scale.setScalar(Math.max(0.05, 1 - s.t / 4)); if (s.t > 4) { scene.remove(s.m); sparks.splice(i, 1); } }
     const now = performance.now(); trackMe(now); if (localListeners.length && now - lastBroadcast > 100) { lastBroadcast = now; const s = { zone: player.zone, x: player.x, z: player.z, yaw: player.face, name: data.nick }; localListeners.forEach(function (fn) { fn(s); }); }
