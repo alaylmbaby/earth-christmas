@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>지구별 크리스마스</title>
 <meta name="description" content="지구별 크리스마스 — 친구들과 트리를 꾸미고 눈싸움하는 3D 크리스마스 마을">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -263,15 +263,15 @@
   <div class="row" style="margin-top:18px"><button class="btn primary" data-close>기다릴게요</button></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" crossorigin="anonymous"></script>
 <script>
 (function () {
   'use strict';
   const $ = function (id) { return document.getElementById(id); };
   const LOG = []; function logLine(t) { LOG.push(new Date().toTimeString().slice(0, 8) + ' ' + t); if (LOG.length > 40) LOG.shift(); const el = document.getElementById('debug'); if (el && !el.hidden) el.textContent = LOG.join('\n'); }
   window.xmasLog = logLine;
-  addEventListener('error', function (e) { const msg = (e.error && e.error.stack) ? e.error.stack.split('\n').slice(0, 3).join(' | ') : (e.message || String(e.error)) + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : ''); logLine('ERROR ' + msg); const h = $('hint'); h.style.display = 'block'; h.style.opacity = '1'; h.textContent = '오류: ' + msg; });
+  addEventListener('error', function (e) { const msg = (e.error && e.error.stack) ? e.error.stack.split('\n').slice(0, 3).join(' | ') : (e.message || String(e.error)) + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : ''); logLine('ERROR ' + msg); const dbg = document.getElementById('debug'); if (dbg) { dbg.hidden = false; dbg.textContent = LOG.join('\n'); } const h = $('hint'); h.style.display = 'block'; h.style.opacity = '1'; h.textContent = '오류: ' + msg; });
   addEventListener('unhandledrejection', function (e) { const r = e.reason; logLine('REJECT ' + (r && (r.message || r.code) ? (r.message || '') + ' ' + (r.code || '') : String(r))); });
   if (!window.THREE) { $('hint').textContent = '3D 라이브러리를 불러오지 못했어요. 새로고침해 주세요.'; return; }
 
@@ -285,6 +285,10 @@
   function mapOrn(r) { return { id: r.id, type: 'ornament', shape: r.shape, color: r.color, name: r.nick, owner: r.owner, at: Date.parse(r.created_at) || Date.now() }; }
   function mapSnow(r) { return { id: r.id, type: 'snowman', x: r.x, z: r.z, ry: r.ry, name: r.nick, owner: r.owner, at: Date.parse(r.created_at) || Date.now() }; }
   const isTouch = matchMedia('(pointer: coarse)').matches; if (isTouch) document.body.classList.add('touch');
+  // Block pinch and double-tap zoom: the page is an app screen, not a document
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
+  document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  let lastTapT = 0; document.addEventListener('touchend', function (e) { const now = Date.now(); if (now - lastTapT < 300 && e.target && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') e.preventDefault(); lastTapT = now; }, { passive: false });
 
   // ---------- Zones ----------
   const ZONES = [
