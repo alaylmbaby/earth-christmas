@@ -66,7 +66,12 @@
   .hint { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(26px + env(safe-area-inset-bottom, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; font-size: 12px; color: var(--muted); text-align: center; max-width: calc(100vw - 200px); backdrop-filter: blur(8px); transition: opacity .3s; }
   .hint kbd { font: inherit; color: var(--fg); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; }
   .touch .hint { display: none; }
-  .tip { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(26px + env(safe-area-inset-bottom, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 12px; color: var(--muted); backdrop-filter: blur(8px); transition: opacity .5s; pointer-events: none; white-space: nowrap; }
+  .zones { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 6px; }
+  .zones button { border: 1px solid var(--line); background: var(--panel); backdrop-filter: blur(8px); border-radius: 999px; padding: 8px 12px; font: 500 12px var(--font-ui); color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .zones button i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .zones button.here { background: var(--fg); color: #ffffff; border-color: transparent; font-weight: 700; }
+  .zones button:disabled { opacity: .6; }
+  .tip { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(70px + env(safe-area-inset-bottom, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 12px; color: var(--muted); backdrop-filter: blur(8px); transition: opacity .5s; pointer-events: none; white-space: nowrap; }
   .tip.gone { opacity: 0; }
 
   .actions { position: absolute; left: 50%; transform: translate(-50%, 20px); bottom: calc(100px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; }
@@ -207,6 +212,7 @@
     <div class="vrow"><button class="btn ghost" id="vClose">닫기</button><button class="btn primary" id="vNext">다음 ›</button></div>
   </div>
   <div class="cine quiet" id="cine" hidden><span id="cineText"></span></div>
+  <div class="zones" id="zones"></div>
   <div class="tip quiet" id="tip">화면을 끌면 걸어가요 · 두 손가락으로 멀리/가까이</div>
   <div class="dock" id="dock">
     <button class="tab" id="dockTab" aria-label="메뉴 접기"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
@@ -293,7 +299,7 @@
   // Block pinch and double-tap zoom: the page is an app screen, not a document
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
   document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-  let lastTapT = 0; document.addEventListener('touchend', function (e) { const now = Date.now(); if (now - lastTapT < 300 && e.target && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') e.preventDefault(); lastTapT = now; }, { passive: false });
+  let lastTapT = 0; document.addEventListener('touchend', function (e) { const now = Date.now(); if (now - lastTapT < 300 && e.target && !(e.target.closest && e.target.closest('button, a, input, textarea, label, .sheet'))) e.preventDefault(); lastTapT = now; }, { passive: false });
 
   // ---------- Zones ----------
   const ZONES = [
@@ -590,7 +596,8 @@
 
   // ---------- Zone travel ----------
   const fade = $('fade'); let traveling = false;
-  function applyZoneLook() { const z = curZone(); paintSky(z.sky[0], z.sky[1]); scene.background.setHex(z.fog); scene.fog.color.setHex(z.fog); hemi.intensity = z.outdoor ? 0.55 : 0.5; key.intensity = z.outdoor ? 0.9 : 0.6; scene.fog.near = z.fogNear; scene.fog.far = z.fogFar; snowPts.visible = z.outdoor; $('zoneName').textContent = z.name; $('zoneSub').textContent = z.sub; updateFill(); updateVisitors(); }
+  function renderZoneChips() { const el = $('zones'); if (!el.children.length) { ZONES.forEach(function (z, i) { const b = document.createElement('button'); b.type = 'button'; b.innerHTML = '<i style="background:' + z.accent + '"></i>' + z.name; b.addEventListener('click', function () { if (i !== player.zone) travel(i); }); el.appendChild(b); }); } Array.from(el.children).forEach(function (b, i) { b.classList.toggle('here', i === player.zone); }); }
+  function applyZoneLook() { renderZoneChips(); const z = curZone(); paintSky(z.sky[0], z.sky[1]); scene.background.setHex(z.fog); scene.fog.color.setHex(z.fog); hemi.intensity = z.outdoor ? 0.55 : 0.5; key.intensity = z.outdoor ? 0.9 : 0.6; scene.fog.near = z.fogNear; scene.fog.far = z.fogFar; snowPts.visible = z.outdoor; $('zoneName').textContent = z.name; $('zoneSub').textContent = z.sub; updateFill(); updateVisitors(); }
   function travel(toIndex) { if (traveling || toIndex === player.zone) return; traveling = true; fade.classList.add('on'); closeSheets(); cancelSnowman(); view = null; $('viewer').hidden = true; $('dock').style.opacity = ''; cine = null; $('hud').classList.remove('cinema'); setCineText(null); setTimeout(function () { player.zone = toIndex; const z = curZone(); player.x = z.spawn[0]; player.z = z.spawn[1]; player.yaw = Math.atan2(player.x, player.z); player.face = player.yaw; player.pitch = 0.05; applyZoneLook(); joinZone(); showToast(z.name + '에 도착했어요'); setTimeout(function () { fade.classList.remove('on'); traveling = false; }, 150); }, 480); }
   applyZoneLook();
 
@@ -652,10 +659,10 @@
   canvas.addEventListener('mousedown', function (e) { dragging = true; lastX = e.clientX; lastY = e.clientY; });
   addEventListener('mousemove', function (e) { if (!dragging) return; look(e.clientX - lastX, e.clientY - lastY); lastX = e.clientX; lastY = e.clientY; });
   addEventListener('mouseup', function () { dragging = false; });
-  let moveId = null, moveStart = null, pinch = null; const ZOOM_MIN = 0.45, ZOOM_MAX = 2.2;
+  let moveId = null, moveStart = null, pinch = null, dragYaw = 0; const ZOOM_MIN = 0.45, ZOOM_MAX = 2.2;
   function setZoom(v) { player.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v)); }
   addEventListener('wheel', function (e) { if (sheetOpen() || !enter.hidden) return; e.preventDefault(); setZoom(player.zoom * (1 + Math.sign(e.deltaY) * 0.08)); }, { passive: false });
-  addEventListener('touchstart', function (e) { if (sheetOpen() || !enter.hidden) return; if (e.touches.length >= 2) { const a = e.touches[0], b = e.touches[1]; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), zoom: player.zoom }; moveId = null; dragVec = { x: 0, y: 0 }; return; } for (const t of e.changedTouches) { const el = document.elementFromPoint(t.clientX, t.clientY); if (moveId === null && el === canvas) { moveId = t.identifier; moveStart = { x: t.clientX, y: t.clientY }; dragVec = { x: 0, y: 0 }; } } }, { passive: true });
+  addEventListener('touchstart', function (e) { if (sheetOpen() || !enter.hidden) return; if (e.touches.length >= 2) { const a = e.touches[0], b = e.touches[1]; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), zoom: player.zoom }; moveId = null; dragVec = { x: 0, y: 0 }; return; } for (const t of e.changedTouches) { const el = document.elementFromPoint(t.clientX, t.clientY); if (moveId === null && el === canvas) { moveId = t.identifier; moveStart = { x: t.clientX, y: t.clientY }; dragVec = { x: 0, y: 0 }; dragYaw = player.yaw; } } }, { passive: true });
   addEventListener('touchmove', function (e) { if (pinch && e.touches.length >= 2) { const a = e.touches[0], b = e.touches[1]; const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); if (d > 10) setZoom(pinch.zoom * (pinch.d / d)); e.preventDefault(); return; } for (const t of e.changedTouches) { if (t.identifier === moveId) { const dx = t.clientX - moveStart.x, dy = t.clientY - moveStart.y; const len = Math.hypot(dx, dy); const R = 48; if (len < 6) { dragVec = { x: 0, y: 0 }; } else { const k = Math.min(1, (len - 8) / R); dragVec = { x: dx / len * k, y: dy / len * k }; } } } if (moveId !== null) e.preventDefault(); }, { passive: false });
   function endTouch(e) { if (e.touches.length < 2) pinch = null; for (const t of e.changedTouches) { if (t.identifier === moveId) { moveId = null; dragVec = { x: 0, y: 0 }; } } } addEventListener('touchend', endTouch); addEventListener('touchcancel', endTouch);
   function tryMove(nx, nz) { const z = curZone(); const r = player.radius; const d = Math.hypot(nx, nz); const lim = z.bound - r; if (d > lim) { nx *= lim / d; nz *= lim / d; } const wx = z.origin.x + nx, wz = z.origin.z + nz; for (const c of colliders) { if (Math.hypot(wx - c.x, wz - c.z) < c.r + r) return false; } for (const c of dynColliders) { if (Math.hypot(wx - c.x, wz - c.z) < c.r + r) return false; } player.x = nx; player.z = nz; return true; }
@@ -798,10 +805,10 @@
     const dt = Math.min(clock.getDelta(), 0.05); tAcc += dt; const z = curZone(); let movedNow = false; const ui = sheetOpen() || !enter.hidden || !!cine || !!view;
     if (!ui && !traveling) {
       let fx = 0, fz = 0; if (keys.KeyW || keys.ArrowUp) fz -= 1; if (keys.KeyS || keys.ArrowDown) fz += 1; if (keys.KeyA || keys.ArrowLeft) fx -= 1; if (keys.KeyD || keys.ArrowRight) fx += 1;
-      fx += dragVec.x; fz += dragVec.y; let dx = 0, dz = 0; const len = Math.hypot(fx, fz);
-      if (len > 0) { if (len > 1) { fx /= len; fz /= len; } const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw); dx = (fx * cos + fz * sin) * player.speed * dt; dz = (-fx * sin + fz * cos) * player.speed * dt; }
+      const useDrag = (dragVec.x || dragVec.y) && !fx && !fz; fx += dragVec.x; fz += dragVec.y; let dx = 0, dz = 0; const len = Math.hypot(fx, fz);
+      if (len > 0) { if (len > 1) { fx /= len; fz /= len; } const refYaw = useDrag ? dragYaw : player.yaw; const sin = Math.sin(refYaw), cos = Math.cos(refYaw); dx = (fx * cos + fz * sin) * player.speed * dt; dz = (-fx * sin + fz * cos) * player.speed * dt; }
       if (dx || dz) { tryMove(player.x + dx, player.z + dz) || tryMove(player.x + dx, player.z) || tryMove(player.x, player.z + dz); const want = Math.atan2(-dx, -dz); let dy = want - player.face; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); player.face += dy * Math.min(1, dt * 12); bob += dt * 9; movedNow = true; if (!tipGone && (tipGone = true)) $('tip').classList.add('gone');
-        if (isTouch && !building) { let cy = player.face - player.yaw; cy = Math.atan2(Math.sin(cy), Math.cos(cy)); if (Math.abs(cy) < 2.4) player.yaw += cy * Math.min(1, dt * 1.6); } }
+        if (isTouch && !building) { let cy = player.face - player.yaw; cy = Math.atan2(Math.sin(cy), Math.cos(cy)); if (Math.abs(cy) < 2.4) player.yaw += cy * Math.min(1, dt * (moveId !== null ? 0.5 : 1.6)); } }
     }
     shake = Math.max(0, shake - dt * 1.6);
     if (me) { if (movedNow) { idleT = 0; if (me.userData.expr === 'sleep' && !me.userData.exprUntil) setFace(me, 'neutral'); } else { idleT += dt; if (idleT > 25 && me.userData.expr === 'neutral') setFace(me, 'sleep', 0); } me.position.x = worldX(); me.position.z = worldZ(); me.rotation.y = player.face; me.rotation.z = Math.sin(tAcc * 30) * shake * 0.2; animateAvatar(me, movedNow, dt); me.visible = !cine || !!view; }
@@ -815,7 +822,7 @@
     // Throw cooldown
     if (throwCd > 0) { throwCd -= dt; throwBtn.disabled = throwCd > 0; }
     // Portals
-    for (const p of z.portals) { p.pad.material.opacity = 0.5 + Math.sin(tAcc * 3) * 0.25; if (!traveling && !ui && Math.hypot(worldX() - p.x, worldZ() - p.z) < 1.1) travel(p.to); }
+    for (const p of z.portals) { p.pad.material.opacity = 0.5 + Math.sin(tAcc * 3) * 0.25; if (!traveling && !ui && Math.hypot(worldX() - p.x, worldZ() - p.z) < 1.5) travel(p.to); }
     // Ambient
     const ud = z.treeObj.group.userData; if (ud.spin) ud.spin.rotation.y += dt * 0.8; if (ud.pulse) { const k = 1.2 + Math.sin(tAcc * 4) * 0.8; ud.pulse.material.emissiveIntensity = k; ud.noseHalo.material.opacity = 0.4 + k * 0.25; }
     if (ud.halos) { camera.getWorldQuaternion(camQ); ud.halos.forEach(function (h) { for (let i = 0; i < h.count; i++) { h.getMatrixAt(i, dummy.matrix); dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale); dummy.quaternion.copy(camQ); dummy.scale.setScalar(1 + Math.sin(tAcc * 2 + i) * 0.15); dummy.updateMatrix(); h.setMatrixAt(i, dummy.matrix); } h.instanceMatrix.needsUpdate = true; }); }
