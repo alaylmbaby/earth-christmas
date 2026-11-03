@@ -35,12 +35,15 @@
   .brand span { display: block; margin-top: 3px; font-size: 11px; color: var(--muted); letter-spacing: 0.06em; }
 
   .fill { position: absolute; top: calc(10px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 12px; backdrop-filter: blur(8px); display: flex; align-items: center; gap: 8px; font-size: 11px; }
-  .fill .n { font: 700 13px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+  .fill .n { font: 500 11px/1 var(--font-ui); color: var(--muted); font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 3px; }
+  .fill .n svg { width: 12px; height: 12px; fill: #6cb892; }
+  .fill .sep { width: 1px; height: 14px; background: var(--line); }
   .fill .n small { font: 400 10px var(--font-ui); color: var(--muted); margin-left: 1px; }
-  .fill .bar { width: 44px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; display: inline-block; }
+  .fill .bar { width: 30px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; display: inline-block; }
   .fill .bar i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .4s ease; }
-  .fill .who { color: var(--muted); display: inline-flex; align-items: center; gap: 4px; }
-  .fill .who b { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .fill .who { color: var(--fg); display: inline-flex; align-items: center; gap: 5px; font: 700 14px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+  .fill .who em { font: 500 11px var(--font-ui); color: var(--muted); font-style: normal; }
+  .fill .who b { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px rgba(108,194,154,.25); }
   .fill .me { display: none; }
 
   .dock { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; transition: transform .35s cubic-bezier(.2,.8,.2,1); }
@@ -183,7 +186,7 @@
 
 <div class="hud" id="hud">
   <div class="brand quiet"><h1 id="zoneName">광장</h1><span id="zoneSub">큰 트리 · 눈 내리는 밤</span></div>
-  <div class="fill"><span class="n"><span id="fillNum">0</span><small>/500</small></span><span class="bar"><i id="fillBar"></i></span><span class="who"><b></b><span id="visitorCount" style="pointer-events:auto">1명</span></span><button class="maplink" id="mapBtn" aria-label="지도 열기"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</button><span class="me" id="meName" hidden></span></div>
+  <div class="fill"><span class="who"><b></b><span id="visitorCount" style="pointer-events:auto">1명</span><em>함께</em></span><span class="sep"></span><span class="n" title="이 트리에 걸린 장식"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l5 7h-3l4 6h-4l3 5H7l3-5H6l4-6H7z"/></svg><span id="fillNum">0</span><small>/500</small></span><span class="bar"><i id="fillBar"></i></span><button class="maplink" id="mapBtn" aria-label="지도 열기"><svg viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>지도</button><span class="me" id="meName" hidden></span></div>
   <div class="reticle quiet"></div>
   <div class="hint" id="hint">클릭해서 둘러보기 · <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 이동 · <kbd>Space</kbd> 눈싸움 · 드래그로 카메라</div>
   <div class="toast quiet" id="toast"></div>
