@@ -153,6 +153,11 @@
   .enter h1 { font: 700 30px/1.2 var(--font-display); margin: 0; text-wrap: balance; }
   .enter p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0 0 8px; }
   .enter input { text-align: center; font-size: 17px; }
+  .enter .pick { display: grid; justify-items: center; gap: 12px; margin: 4px 0 6px; --pick: #f28a3c; --pick-light: #f7b98a; }
+  .enter .gnome { width: 96px; height: 136px; filter: drop-shadow(0 6px 10px rgba(60,40,80,.25)); }
+  .enter .swatches { display: grid; grid-template-columns: repeat(8, 30px); gap: 8px; margin: 0; }
+  .enter .swatches button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; padding: 0; box-shadow: 0 2px 0 rgba(60,40,80,.2); }
+  .enter .swatches button[aria-checked="true"] { border-color: #ffffff; transform: scale(1.12); }
   .enter .fine { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
   .btn.mine { width: 100%; margin-top: 10px; color: var(--accent); border-color: rgba(228,178,90,.4); }
@@ -183,6 +188,10 @@
     <div class="eyebrow">CHRISTMAS 2026</div>
     <h1>지구별 크리스마스에<br>오신 걸 환영해요</h1>
     <p>이름만 정하면 바로 들어갈 수 있어요.<br>광장, 산타 작업장, 루돌프네 집을 오가며 트리를 꾸며 보세요.</p>
+    <div class="pick" id="pick">
+      <svg class="gnome" viewBox="0 0 120 170" aria-hidden="true"><ellipse cx="60" cy="162" rx="30" ry="5" fill="rgba(60,40,80,.25)"/><ellipse cx="48" cy="156" rx="9" ry="5" style="fill: var(--pick-light)"/><ellipse cx="72" cy="156" rx="9" ry="5" style="fill: var(--pick-light)"/><path d="M30,128 C26,92 42,62 60,62 C78,62 94,92 90,128 C88,146 74,156 60,156 C46,156 32,146 30,128Z" style="fill: var(--pick)"/><path d="M24,70 C22,20 50,2 72,2 C86,2 96,10 100,22 C92,18 82,22 78,34 C72,52 86,70 92,96 C94,112 80,124 60,124 C40,124 22,112 24,70Z" style="fill: var(--pick)"/><ellipse cx="60" cy="88" rx="24" ry="22" fill="#f6dcc0"/><ellipse cx="51" cy="84" rx="2.6" ry="3.6" fill="#24201e"/><ellipse cx="69" cy="84" rx="2.6" ry="3.6" fill="#24201e"/><circle cx="44" cy="94" r="4" fill="#f29a8a" opacity=".75"/><circle cx="76" cy="94" r="4" fill="#f29a8a" opacity=".75"/><path d="M58,98 q2,2 4,0" stroke="#24201e" stroke-width="1.4" fill="none" stroke-linecap="round"/><circle cx="104" cy="30" r="6" fill="#ffe07a"/><circle cx="104" cy="30" r="12" fill="#ffd27a" opacity=".3"/></svg>
+      <div class="swatches" id="colorPick" role="radiogroup" aria-label="캐릭터 색"></div>
+    </div>
     <input id="nickInput" maxlength="10" placeholder="닉네임 (2~10자)" autocomplete="off">
     <button class="btn primary" id="enterBtn">들어가기</button>
     <div class="fine">가입·인증 없음. 이 기기에 이름만 기억해 둬요.</div>
@@ -313,7 +322,7 @@
 
   // ---------- Local store (server replaces this later; same record shapes) ----------
   const store = { load: function (k, d) { try { return JSON.parse(localStorage.getItem('xmas:' + k)) || d; } catch (e) { return d; } }, save: function (k, v) { try { localStorage.setItem('xmas:' + k, JSON.stringify(v)); } catch (e) {} } };
-  const data = { nick: store.load('nick', ''), ornaments: store.load('ornaments', {}), snowmen: store.load('snowmen', {}), me: store.load('me', '') };
+  const data = { color: store.load('color', null), nick: store.load('nick', ''), ornaments: store.load('ornaments', {}), snowmen: store.load('snowmen', {}), me: store.load('me', '') };
   if (!data.me) { data.me = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); store.save('me', data.me); }
   function isMine(o) { if (uid) return o.owner === uid; return o.owner ? o.owner === data.me : o.name === data.nick; }
   ZONES.forEach(function (z) { data.ornaments[z.id] = data.ornaments[z.id] || []; data.snowmen[z.id] = data.snowmen[z.id] || []; });
@@ -364,9 +373,9 @@
     m.onBeforeCompile = function (sh) { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n{ float fr = pow(1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0), 2.4); totalEmissiveRadiance += diffuseColor.rgb * fr * 0.38 + vec3(0.03) * fr; }'); }; return m; }
   const ACC = {}; // kept for compatibility; tips are chosen below
   const TIPS = ['lantern', 'star', 'pom', 'holly', 'snowflake', 'bells'];
-  function buildAvatar(seed, nick, parent) {
+  function buildAvatar(seed, nick, parent, colorIdx) {
     const r = hashSeed(String(seed || 'guest')); const outer = new THREE.Group(); (parent || scene).add(outer); const g = new THREE.Group(); g.rotation.y = Math.PI; outer.add(g);
-    const bodyCol = BODIES[Math.floor(r() * BODIES.length)]; const coat = fur(bodyCol); const coatLight = fur(new THREE.Color(bodyCol).lerp(new THREE.Color(0xffffff), 0.35).getHex(), { bump: 0.008 });
+    const seedCol = Math.floor(r() * BODIES.length); const bodyCol = BODIES[(typeof colorIdx === 'number' && colorIdx >= 0 && colorIdx < BODIES.length) ? colorIdx : seedCol]; const coat = fur(bodyCol); const coatLight = fur(new THREE.Color(bodyCol).lerp(new THREE.Color(0xffffff), 0.35).getHex(), { bump: 0.008 });
     const skin = new THREE.MeshStandardMaterial({ color: 0xf6dcc0, roughness: .55, metalness: 0 }); const dark = new THREE.MeshStandardMaterial({ color: 0x24201e, roughness: .6 });
     // feet
     const legs = []; [-1, 1].forEach(function (sd) { const leg = new THREE.Group(); leg.position.set(sd * 0.14, 0.12, 0); const foot = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), coatLight); foot.scale.set(1, 0.55, 1.35); foot.position.set(0, -0.05, 0.04); foot.castShadow = true; leg.add(foot); g.add(leg); legs.push(leg); });
@@ -562,7 +571,7 @@
   // ---------- Remote visitors (the realtime layer calls these) ----------
   const remote = new Map(); const localListeners = [];
   window.xmas = {
-    upsertVisitor: function (id, s) { let v = remote.get(id); if (!v) { v = buildAvatar(id, s.name || '친구', scene); v.userData.body = v; v.userData.target = null; remote.set(id, v); } v.userData.zone = s.zone; v.userData.id = id; const o = ZONES[s.zone || 0].origin; const tx = o.x + s.x, tz = o.z + s.z; if (!v.userData.target) v.position.set(tx, 0, tz); v.userData.target = { x: tx, z: tz, yaw: s.yaw || 0 }; v.visible = s.zone === player.zone; updateVisitors(); },
+    upsertVisitor: function (id, s) { let v = remote.get(id); if (v && typeof s.color === 'number' && v.userData.color !== s.color) { scene.remove(v); remote.delete(id); v = null; } if (!v) { v = buildAvatar(id, s.name || '친구', scene, s.color); v.userData.color = s.color; v.userData.body = v; v.userData.target = null; remote.set(id, v); } v.userData.zone = s.zone; v.userData.id = id; const o = ZONES[s.zone || 0].origin; const tx = o.x + s.x, tz = o.z + s.z; if (!v.userData.target) v.position.set(tx, 0, tz); v.userData.target = { x: tx, z: tz, yaw: s.yaw || 0 }; v.visible = s.zone === player.zone; updateVisitors(); },
     removeVisitor: function (id) { const v = remote.get(id); if (v) { scene.remove(v); remote.delete(id); updateVisitors(); } },
     onLocalState: function (fn) { localListeners.push(fn); },
     /** Sync layer -> page: another visitor added an ornament or snowman. */
@@ -604,7 +613,7 @@
   // ---------- Entry (nickname) ----------
   const enter = $('enter'); const nickInput = $('nickInput');
   let tipGone = false, idleT = 0;
-  let me = null; function setNick(n) { data.nick = n; store.save('nick', n); $('meName').textContent = '나: ' + n; if (me) scene.remove(me); me = buildAvatar(uid || data.me, n, scene); me.position.set(worldX(), 0, worldZ()); me.rotation.y = player.face; }
+  let me = null; function setNick(n) { data.nick = n; store.save('nick', n); $('meName').textContent = '나: ' + n; if (me) scene.remove(me); me = buildAvatar(uid || data.me, n, scene, data.color); me.position.set(worldX(), 0, worldZ()); me.rotation.y = player.face; }
   async function bootAuth() {
     logLine('lib three=' + !!window.THREE + ' supabase=' + !!window.supabase + ' client=' + !!sb);
     if (!sb) { logLine('supabase 라이브러리 없음 → 혼자 놀기 모드'); if (data.nick) { setNick(data.nick); enter.hidden = true; } return; }
@@ -632,21 +641,23 @@
     if (!online) return; if (zoneCh) { try { await sb.removeChannel(zoneCh); } catch (e) {} zoneCh = null; }
     Array.from(remote.keys()).forEach(function (id) { window.xmas.removeVisitor(id); });
     const z = curZone(); const ch = sb.channel('zone:' + z.id, { config: { presence: { key: uid }, broadcast: { self: false }, private: privateRealtime } });
-    const applyPresence = function (why) { try { const st = ch.presenceState(); const seen = {}; Object.keys(st).forEach(function (k) { const arr = st[k]; const p = arr && arr[arr.length - 1]; if (!p) return; const key = (p.uid || k); if (key === uid) return; if (typeof p.x !== 'number') return; seen[key] = true; window.xmas.upsertVisitor(key, { zone: player.zone, x: p.x, z: p.z, yaw: p.yaw, name: p.nick }); }); Array.from(remote.keys()).forEach(function (id) { if (!seen[id]) window.xmas.removeVisitor(id); }); logLine('presence(' + why + ') ' + Object.keys(st).length + '명 · 보임 ' + Object.keys(seen).length); } catch (e) { logLine('presence ERR ' + e.message); } };
+    const applyPresence = function (why) { try { const st = ch.presenceState(); const seen = {}; Object.keys(st).forEach(function (k) { const arr = st[k]; const p = arr && arr[arr.length - 1]; if (!p) return; const key = (p.uid || k); if (key === uid) return; if (typeof p.x !== 'number') return; seen[key] = true; window.xmas.upsertVisitor(key, { zone: player.zone, x: p.x, z: p.z, yaw: p.yaw, name: p.nick, color: (typeof p.color === 'number' ? p.color : undefined) }); }); Array.from(remote.keys()).forEach(function (id) { if (!seen[id]) window.xmas.removeVisitor(id); }); logLine('presence(' + why + ') ' + Object.keys(st).length + '명 · 보임 ' + Object.keys(seen).length); } catch (e) { logLine('presence ERR ' + e.message); } };
     ch.on('presence', { event: 'sync' }, function () { applyPresence('sync'); }).on('presence', { event: 'join' }, function () { applyPresence('join'); }).on('presence', { event: 'leave' }, function () { applyPresence('leave'); })
       .on('broadcast', { event: 'throw' }, function (m) { try { if (m.payload && m.payload.from !== uid) spawnRemoteBall(m.payload); } catch (e) { logLine('throw ERR ' + e.message); } })
       .on('broadcast', { event: 'hit' }, function (m) { if (m.payload && m.payload.target === uid) window.xmas.hitMe(m.payload.from); })
-      .subscribe(async function (status, err) { logLine('zone:' + z.id + ' ' + status + (err ? ' ' + (err.message || err) : '')); if (status === 'SUBSCRIBED') { try { const r = await ch.track({ uid: uid, x: player.x, z: player.z, yaw: player.face, nick: data.nick, t: Date.now() }); logLine('track ' + r); } catch (e) { logLine('track ERR ' + e.message); } } else if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !privateRealtime && zoneCh === ch) { privateRealtime = true; logLine('retry as private channel'); joinZone(); } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') showToast('실시간 연결 실패(' + status + '). 인원 표시를 눌러 기록을 확인하세요'); });
+      .subscribe(async function (status, err) { logLine('zone:' + z.id + ' ' + status + (err ? ' ' + (err.message || err) : '')); if (status === 'SUBSCRIBED') { try { const r = await ch.track({ uid: uid, x: player.x, z: player.z, yaw: player.face, nick: data.nick, color: data.color, t: Date.now() }); logLine('track ' + r); } catch (e) { logLine('track ERR ' + e.message); } } else if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && !privateRealtime && zoneCh === ch) { privateRealtime = true; logLine('retry as private channel'); joinZone(); } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') showToast('실시간 연결 실패(' + status + '). 인원 표시를 눌러 기록을 확인하세요'); });
     zoneCh = ch;
   }
   let lastTrack = 0, lastTracked = { x: 1e9, z: 1e9, yaw: 0 };
   // Send my state when it changes (≤5/s) and at least every 4 s as a heartbeat so late joiners always get a fresh position
-  function trackMe(now) { if (!zoneCh || now - lastTrack < 200) return; const changed = Math.abs(player.x - lastTracked.x) > 0.02 || Math.abs(player.z - lastTracked.z) > 0.02 || Math.abs(player.face - lastTracked.yaw) > 0.03; if (!changed && now - lastTrack < 4000) return; lastTrack = now; lastTracked = { x: player.x, z: player.z, yaw: player.face }; try { const pr = zoneCh.track({ uid: uid, x: player.x, z: player.z, yaw: player.face, nick: data.nick, t: Date.now() }); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {} }
+  function trackMe(now) { if (!zoneCh || now - lastTrack < 200) return; const changed = Math.abs(player.x - lastTracked.x) > 0.02 || Math.abs(player.z - lastTracked.z) > 0.02 || Math.abs(player.face - lastTracked.yaw) > 0.03; if (!changed && now - lastTrack < 4000) return; lastTrack = now; lastTracked = { x: player.x, z: player.z, yaw: player.face }; try { const pr = zoneCh.track({ uid: uid, x: player.x, z: player.z, yaw: player.face, nick: data.nick, color: data.color, t: Date.now() }); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {} }
   function spawnRemoteBall(p) { const z = curZone(); const b = sphere(0.11, M.white, 0, 0, 0, scene, 8); const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(1, 0, 0), p.pitch || 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), p.yaw || 0); b.position.set(z.origin.x + p.x, 1.3, z.origin.z + p.z).addScaledVector(dir, 0.45); balls.push({ m: b, v: dir.multiplyScalar(11).add(new THREE.Vector3(0, 2.0, 0)), t: 0, remote: true }); const v = remote.get(p.from); if (v) v.userData.throwT = 0.4; }
   window.xmas.onEvent(function (ev) { if (!zoneCh) return; if (ev.type === 'throw') zoneCh.send({ type: 'broadcast', event: 'throw', payload: { from: uid, x: ev.x, z: ev.z, yaw: ev.yaw, pitch: ev.pitch } }); if (ev.type === 'hit') zoneCh.send({ type: 'broadcast', event: 'hit', payload: { target: ev.target, from: ev.from } }); if (ev.type === 'wish' && online) sb.from('wishes').insert({ zone: ev.zone, owner: uid, text: ev.text || '' }).then(function () {}, function () {}); });
   bootAuth();
+  // Color picker on the entry screen (8 swatches; remembered on this device)
+  (function () { const el = $('colorPick'); const names = ['당근', '라즈베리', '하늘', '민트', '라벤더', '버터', '체리', '틸']; if (data.color == null) data.color = Math.floor(Math.random() * BODIES.length); BODIES.forEach(function (c, i) { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', names[i]); b.style.background = '#' + c.toString(16).padStart(6, '0'); b.addEventListener('click', function () { data.color = i; store.save('color', i); paint(); }); el.appendChild(b); }); function paint() { Array.from(el.children).forEach(function (b, i) { b.setAttribute('aria-checked', i === data.color); }); const c = new THREE.Color(BODIES[data.color]); $('pick').style.setProperty('--pick', '#' + c.getHexString()); $('pick').style.setProperty('--pick-light', '#' + c.clone().lerp(new THREE.Color(0xffffff), 0.4).getHexString()); } paint(); })();
   $('enterBtn').addEventListener('click', async function () { const n = nickInput.value.trim(); if (n.length < 2) { nickInput.focus(); return showToast('닉네임을 2자 이상 적어 주세요'); } const btn = $('enterBtn'); btn.disabled = true; btn.textContent = '입장 중…';
-    if (sb) { try { if (!uid) { const r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; uid = r.data.user.id; logLine('signed in anon ' + uid.slice(0, 8)); } const up = await sb.from('profiles').upsert({ id: uid, nick: n }); if (up.error) throw up.error; logLine('profile ok'); } catch (e) { console.warn('signin', e); logLine('signin FAIL ' + (e.message || e)); uid = null; showToast('서버 로그인 실패: ' + (e.message || e)); } }
+    if (sb) { try { if (!uid) { const r = await sb.auth.signInAnonymously(); if (r.error) throw r.error; uid = r.data.user.id; logLine('signed in anon ' + uid.slice(0, 8)); } let up = await sb.from('profiles').upsert({ id: uid, nick: n, color: data.color }); if (up.error) { up = await sb.from('profiles').upsert({ id: uid, nick: n }); } if (up.error) throw up.error; logLine('profile ok'); } catch (e) { console.warn('signin', e); logLine('signin FAIL ' + (e.message || e)); uid = null; showToast('서버 로그인 실패: ' + (e.message || e)); } }
     setNick(n); enter.hidden = true; btn.disabled = false; btn.textContent = '들어가기'; showToast(n + '님, 광장에 오신 걸 환영해요'); await goOnline(); });
   nickInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') $('enterBtn').click(); });
 
@@ -832,7 +843,7 @@
     for (let i = balls.length - 1; i >= 0; i--) { const b = balls[i]; b.t += dt; b.v.y -= 9.8 * dt; b.m.position.addScaledVector(b.v, dt); let hit = false; if (!b.remote) remote.forEach(function (v) { if (!hit && v.visible && b.m.position.distanceTo(new THREE.Vector3(v.position.x, 0.9, v.position.z)) < 0.7) { hit = true; v.userData.wobble = 1; setFace(v, 'surprise', 1.6); if (me) setFace(me, 'smile', 2.5); puff(b.m.position, true); showToast('명중! ❄'); emit({ type: 'hit', target: v.userData.id, from: data.nick }); } }); const treeD = Math.hypot(b.m.position.x - z.origin.x, b.m.position.z - z.origin.z); if (!hit && (b.m.position.y < 0.08 || treeD < profile(z.tree, Math.max(0, Math.min(1, (b.m.position.y - z.treeObj.trunkH) / z.treeObj.bodyH))) + 0.1 || b.t > 4)) { hit = true; puff(b.m.position, false); } if (hit) { scene.remove(b.m); balls.splice(i, 1); } }
     remote.forEach(function (v) { const tg = v.userData.target; let mv = false; if (tg) { const ddx = tg.x - v.position.x, ddz = tg.z - v.position.z; mv = Math.hypot(ddx, ddz) > 0.03; v.position.x += ddx * Math.min(1, dt * 12); v.position.z += ddz * Math.min(1, dt * 12); let dy = tg.yaw - v.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); v.rotation.y += dy * Math.min(1, dt * 8); } animateAvatar(v, mv, dt); if (v.userData.wobble > 0) { v.userData.wobble -= dt * 1.5; v.rotation.z = Math.sin(tAcc * 30) * v.userData.wobble * 0.25; } });
     for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i]; s.t += dt; if (s.puff) { s.m.scale.multiplyScalar(1 + dt * 2.5); s.m.material.opacity -= dt * 2.2; if (s.m.material.opacity <= 0) { scene.remove(s.m); sparks.splice(i, 1); } continue; } s.m.position.y += dt * 2.2; s.m.position.x += Math.sin(s.t * 3) * dt * 0.4; s.m.scale.setScalar(Math.max(0.05, 1 - s.t / 4)); if (s.t > 4) { scene.remove(s.m); sparks.splice(i, 1); } }
-    const now = performance.now(); trackMe(now); if (localListeners.length && now - lastBroadcast > 100) { lastBroadcast = now; const s = { zone: player.zone, x: player.x, z: player.z, yaw: player.face, name: data.nick }; localListeners.forEach(function (fn) { fn(s); }); }
+    const now = performance.now(); trackMe(now); if (localListeners.length && now - lastBroadcast > 100) { lastBroadcast = now; const s = { zone: player.zone, x: player.x, z: player.z, yaw: player.face, name: data.nick, color: data.color }; localListeners.forEach(function (fn) { fn(s); }); }
     renderer.render(scene, camera); requestAnimationFrame(frame);
   }
   if (hot && hot.ready) hot.ready(frame); else frame();
